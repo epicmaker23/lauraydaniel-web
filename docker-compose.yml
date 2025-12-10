@@ -1,0 +1,12 @@
+services:
+  lauraydaniel-web:
+    image: pierrezemb/gostatic
+    container_name: lauraydaniel-web
+    restart: unless-stopped
+    command: ["-port","8043","-fallback","/index.html","/srv/http"]
+    volumes:
+      - ./build/web/:/srv/http
+    ports:
+      - "3001:8043"
+
+

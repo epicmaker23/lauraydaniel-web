@@ -1,0 +1,32 @@
+# Docker Compose para Producción
+# Usa este archivo en el servidor de producción
+# Ejemplo: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  lauraydaniel-web:
+    image: pierrezemb/gostatic
+    container_name: lauraydaniel-web
+    restart: unless-stopped
+    command: ["-port","8043","-fallback","/index.html","/srv/http"]
+    volumes:
+      - ./build/web:/srv/http
+    ports:
+      - "127.0.0.1:8043:8043"  # Solo escucha en localhost (Nginx hace proxy)
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8043"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+
+
+
+
+
