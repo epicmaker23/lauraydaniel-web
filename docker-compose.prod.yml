@@ -12,6 +12,8 @@ services:
       - ./build/web:/srv/http
     ports:
       - "127.0.0.1:8043:8043"  # Solo escucha en localhost (Nginx hace proxy)
+    environment:
+      _APP_STORAGE_LIMIT: "200000000" # ~200 MB
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8043"]
       interval: 30s

@@ -3,12 +3,14 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:excel/excel.dart' hide Border;
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 // Configuración de Appwrite
 const _appwriteEndpoint = String.fromEnvironment('APPWRITE_ENDPOINT', defaultValue: '');
@@ -60,6 +62,8 @@ class BodaApp extends StatelessWidget {
         '/': (_) => const HomePage(),
         '/formulario': (_) => const PreinscriptionPage(),
         '/admin': (_) => _isAdminAuthenticated() ? const AdminPage() : const AdminLoginPage(),
+        '/galeria': (_) => _isGalleryAuthenticated() ? const GalleryPage() : const GalleryLoginPage(),
+        '/upload': (_) => const UploadPage(),
         // Por compatibilidad si llega sin slash
         'formulario': (_) => const PreinscriptionPage(),
       },
@@ -71,6 +75,14 @@ class BodaApp extends StatelessWidget {
           return MaterialPageRoute(
             builder: (_) => _isAdminAuthenticated() ? const AdminPage() : const AdminLoginPage(),
           );
+        }
+        if (settings.name == '/galeria' || settings.name == 'galeria') {
+          return MaterialPageRoute(
+            builder: (_) => _isGalleryAuthenticated() ? const GalleryPage() : const GalleryLoginPage(),
+          );
+        }
+        if (settings.name == '/upload' || settings.name == 'upload') {
+          return MaterialPageRoute(builder: (_) => const UploadPage());
         }
         return null;
       },
@@ -85,6 +97,16 @@ class BodaApp extends StatelessWidget {
               builder: (_) => _isAdminAuthenticated() ? const AdminPage() : const AdminLoginPage(),
             )
           ];
+        }
+        if (path == '/galeria' || path == 'galeria' || path == '/galeria/') {
+          return [
+            MaterialPageRoute(
+              builder: (_) => _isGalleryAuthenticated() ? const GalleryPage() : const GalleryLoginPage(),
+            )
+          ];
+        }
+        if (path == '/upload' || path == 'upload' || path == '/upload/') {
+          return [MaterialPageRoute(builder: (_) => const UploadPage())];
         }
         return [MaterialPageRoute(builder: (_) => const HomePage())];
       },
@@ -170,8 +192,6 @@ class _HomeContent extends StatelessWidget {
                 _InfoCard(
                   icon: Icons.card_giftcard,
                   title: 'Regalos',
-                  subtitle: 'Vuestra presencia es suficiente',
-                  detail: 'IBAN disponible',
                   onTap: () => _mostrarRegalos(context),
                 ),
                 _InfoCard(
@@ -183,10 +203,10 @@ class _HomeContent extends StatelessWidget {
                 ),
                 _InfoCard(
                   icon: Icons.photo_camera,
-                  title: 'Subir Fotos',
+                  title: 'Fotos / Videos',
                   subtitle: 'Álbum colaborativo',
-                  detail: 'Comparte tus momentos',
-                  onTap: () => _mostrarSubirFotos(context),
+                  detail: 'Revive tus momentos',
+                  onTap: () => Navigator.pushNamed(context, '/galeria'),
                 ),
                 _InfoCard(
                   icon: Icons.movie,
@@ -387,14 +407,14 @@ class _CountdownState extends State<_Countdown> {
 class _InfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
-  final String detail;
+  final String? subtitle;
+  final String? detail;
   final VoidCallback? onTap;
   const _InfoCard({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    required this.detail,
+    this.subtitle,
+    this.detail,
     this.onTap,
   });
   @override
@@ -438,14 +458,18 @@ class _InfoCard extends StatelessWidget {
                           shadows: const [Shadow(color: Colors.black54, blurRadius: 2)],
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: subSize)),
-                      const SizedBox(height: 6),
-                      Text(
-                        detail,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: detailSize),
-                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 6),
+                        Text(subtitle!, textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: subSize)),
+                      ],
+                      if (detail != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          detail!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: detailSize),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -539,18 +563,170 @@ void _dialogoSimple(BuildContext context, String titulo, String contenido) {
 }
 
 void _mostrarRecordatorios(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Recordatorios',
-    'Se crearán 2 recordatorios: 1 semana antes (18/04/2026 10:00) y 3 horas antes (25/04/2026 09:30).',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Recordatorios', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+              const SizedBox(height: 12),
+              const Text('Añade recordatorios a tu calendario para no perderte nuestra boda. Puedes crear dos recordatorios:'),
+              const SizedBox(height: 16),
+              // Recordatorio 1 semana antes
+              _RecordatorioButton(
+                titulo: 'Recordatorio 1 semana antes',
+                descripcion: 'Te recordamos que nuestra boda es en una semana',
+                fecha: DateTime(2026, 4, 18, 10, 0),
+                duracion: const Duration(hours: 1),
+              ),
+              const SizedBox(height: 12),
+              // Recordatorio 3 horas antes
+              _RecordatorioButton(
+                titulo: 'Recordatorio 3 horas antes',
+                descripcion: '¡Nuestra boda es en 3 horas!',
+                fecha: DateTime(2026, 4, 25, 9, 30),
+                duracion: const Duration(hours: 1),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
+}
+
+class _RecordatorioButton extends StatelessWidget {
+  final String titulo;
+  final String descripcion;
+  final DateTime fecha;
+  final Duration duracion;
+
+  const _RecordatorioButton({
+    required this.titulo,
+    required this.descripcion,
+    required this.fecha,
+    required this.duracion,
+  });
+
+  Future<void> _crearRecordatorio(BuildContext context) async {
+    if (kIsWeb) {
+      // Para web, usar enlace de Google Calendar
+      final fechaInicio = fecha.toUtc();
+      final fechaFin = fecha.add(duracion).toUtc();
+      
+      // Formato para Google Calendar: YYYYMMDDTHHMMSSZ
+      final formatoFecha = (DateTime fecha) {
+        return '${fecha.year}${fecha.month.toString().padLeft(2, '0')}${fecha.day.toString().padLeft(2, '0')}T${fecha.hour.toString().padLeft(2, '0')}${fecha.minute.toString().padLeft(2, '0')}${fecha.second.toString().padLeft(2, '0')}Z';
+      };
+      
+      final tituloEncoded = Uri.encodeComponent('Boda Laura & Daniel');
+      final descripcionEncoded = Uri.encodeComponent(descripcion);
+      final ubicacionEncoded = Uri.encodeComponent('Finca Villasevil');
+      
+      final googleCalendarUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+          '&text=$tituloEncoded'
+          '&dates=${formatoFecha(fechaInicio)}/${formatoFecha(fechaFin)}'
+          '&details=$descripcionEncoded'
+          '&location=$ubicacionEncoded';
+      
+      final url = Uri.parse(googleCalendarUrl);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Se abrirá Google Calendar para añadir el evento'),
+              backgroundColor: Color(0xFFD4AF37),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } else {
+      // Para móvil (Android/iOS), usar add_2_calendar
+      try {
+        final event = Event(
+          title: 'Boda Laura & Daniel',
+          description: descripcion,
+          location: 'Finca Villasevil',
+          startDate: fecha,
+          endDate: fecha.add(duracion),
+          iosParams: const IOSParams(
+            reminder: Duration(minutes: 15), // Recordatorio 15 minutos antes en iOS
+          ),
+          androidParams: const AndroidParams(
+            emailInvites: [],
+          ),
+        );
+
+        final result = await Add2Calendar.addEvent2Cal(event);
+        if (result && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Recordatorio "$titulo" añadido a tu calendario'),
+              backgroundColor: const Color(0xFFD4AF37),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al crear el recordatorio: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: () => _crearRecordatorio(context),
+        icon: const Icon(Icons.event, color: Colors.white),
+        label: Text(titulo),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFD4AF37),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
 }
 
 void _mostrarTransporte(BuildContext context) {
   _dialogoSimple(
     context,
     'Transporte',
-    'Servicio de Autobús Gratuito para invitados.\n\nIda:\n• 11:00h – Santander Estación Marítima (Ferry)\n• 11:20h – Torrelavega Estación de Autobuses\n\nVuelta:\n• 01:00h – Salida desde la finca\n\nHorarios orientativos, se confirmarán más adelante.',
+    'Servicio de autobús gratuito para invitados\n\n'
+    'Ponemos a disposición de nuestros invitados un servicio de autobús gratuito que facilitará el desplazamiento hasta la celebración.\n\n'
+    'RUTA:\n'
+    'Los autobuses realizarán la ruta Santander - Villasevil y viceversa.\n\n'
+    'PARADAS:\n'
+    'Se realizarán paradas tanto a la ida como a la vuelta en Puente Viesgo y Torrelavega para facilitar el acceso a todos los invitados.\n\n'
+    'HORARIOS:\n'
+    'Los horarios exactos se facilitarán más adelante en la web. No obstante, informamos que habrá dos horarios de vuelta disponibles:\n'
+    '• Primer horario: 21:30 horas\n'
+    '• Segundo horario: 00:30 horas\n\n'
+    'Os mantendremos informados de cualquier actualización a través de esta web.',
   );
 }
 
@@ -620,18 +796,157 @@ Widget _hotel(String nombre, String ubicacion, String servicios, String url) {
 }
 
 void _mostrarRegalos(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Lista de Regalos',
-    'Vuestra compañía es el regalo más preciado.\n\nIBAN: ES61 0081 2714 1500 0827 1440',
+  final mostrarCuenta = ValueNotifier<bool>(false);
+  showDialog(
+    context: context,
+    builder: (dialogContext) => ValueListenableBuilder<bool>(
+      valueListenable: mostrarCuenta,
+      builder: (context, cuentaVisible, _) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Regalos',
+                  style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37)),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Vuestra presencia es nuestro mejor regalo, pero si queréis hacernos alguno y alguno lo necesita, os dejamos nuestro número de cuenta. Muchas gracias.',
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'No tendremos lista de bodas. Lo más importante para nosotros es compartir este día con vosotros. Si queréis tener un detalle, aquí os dejamos nuestro número de cuenta:',
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () => mostrarCuenta.value = !mostrarCuenta.value,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cuentaVisible ? const Color(0xFFF5F5F5) : Colors.transparent,
+                      border: Border.all(
+                        color: cuentaVisible ? const Color(0xFFD4AF37) : Colors.grey.shade300,
+                        width: 1,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: cuentaVisible
+                              ? SelectableText(
+                                  'ES61 0081 2714 1500 0827 1440',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFD4AF37),
+                                  ),
+                                )
+                              : const Text(
+                                  '[Haz clic aquí para ver el número de cuenta]',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                        ),
+                        Icon(
+                          cuentaVisible ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.grey.shade600,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Mil gracias por acompañarnos.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      mostrarCuenta.dispose();
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Cerrar'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
 void _mostrarParking(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Parking',
-    'Ceremonia (Soto‑Iruz): Aparcamiento gratuito, recomendable aparcar en arcén, plazas limitadas (~25).\n\nFinca (Villasevil): Aparcamiento gratuito con amplias zonas entre 50-150m.',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Aparcamiento', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+              const SizedBox(height: 12),
+              const Text('Para aquellos que vengan en coche. Se puede aparcar en los alrededores de la finca, en el pueblo. También hay un aparcamiento grande a 5 minutos andando de la finca, siguiendo la carretera nacional.'),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () async {
+                  final url = Uri.parse('https://maps.app.goo.gl/JGaGz6RskTJeDiCy7');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.map, color: Color(0xFFD4AF37), size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Ver ubicación del aparcamiento',
+                        style: TextStyle(
+                          color: Color(0xFFD4AF37),
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -798,9 +1113,12 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     }
     if (_companion == 'si') {
       for (final c in _companions) {
-        if (c.age == 'adulto') countAdult++;
-        if (c.age == '12-18') countTeen++;
-        if (c.age == '0-12') countKid++;
+        // Solo contar acompañantes que van a asistir
+        if (c.asistencia == 'si') {
+          if (c.age == 'adulto') countAdult++;
+          if (c.age == '12-18') countTeen++;
+          if (c.age == '0-12') countKid++;
+        }
       }
     }
     
@@ -830,6 +1148,7 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
           .map((c) => {
                 'nombre': c.name.text.trim().toUpperCase(),
                 'edad': c.age.toUpperCase(),
+                'asistencia': c.asistencia.toUpperCase(),
                 'alergias': c.allergies.text.trim().isEmpty ? null : c.allergies.text.trim().toUpperCase(),
               })
           .toList();
@@ -1109,6 +1428,11 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                             _companions[i].age = newAge;
                                           });
                                         },
+                                        onAsistenciaChanged: (String newAsistencia) {
+                                          setState(() {
+                                            _companions[i].asistencia = newAsistencia;
+                                          });
+                                        },
                                       ),
                                   ],
                                 ),
@@ -1127,9 +1451,12 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                   }
                                   if (_companion == 'si') {
                                     for (final c in _companions) {
-                                      if (c.age == 'adulto') totalAdult++;
-                                      if (c.age == '12-18') totalTeen++;
-                                      if (c.age == '0-12') totalKid++;
+                                      // Solo contar acompañantes que van a asistir
+                                      if (c.asistencia == 'si') {
+                                        if (c.age == 'adulto') totalAdult++;
+                                        if (c.age == '12-18') totalTeen++;
+                                        if (c.age == '0-12') totalKid++;
+                                      }
                                     }
                                   }
                                   
@@ -1529,6 +1856,7 @@ class _RadioGroup extends StatelessWidget {
 class _CompanionData {
   final TextEditingController name = TextEditingController();
   String age = 'adulto';
+  String asistencia = 'si'; // 'si' | 'no'
   final TextEditingController allergies = TextEditingController();
 }
 
@@ -1536,7 +1864,13 @@ class _CompanionCard extends StatelessWidget {
   final int index;
   final _CompanionData data;
   final ValueChanged<String> onAgeChanged;
-  const _CompanionCard({required this.index, required this.data, required this.onAgeChanged});
+  final ValueChanged<String> onAsistenciaChanged;
+  const _CompanionCard({
+    required this.index,
+    required this.data,
+    required this.onAgeChanged,
+    required this.onAsistenciaChanged,
+  });
   @override
   Widget build(BuildContext context) {
     const gold = Color(0xFFD4AF37);
@@ -1558,6 +1892,39 @@ class _CompanionCard extends StatelessWidget {
             controller: data.name,
             decoration: const InputDecoration(labelText: 'Nombre y apellidos'),
             validator: (v) => v!.trim().isEmpty ? 'Campo obligatorio' : null,
+          ),
+          const SizedBox(height: 8),
+          const Text('¿Asistirá a la boda?', style: TextStyle(fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Sí'),
+                selected: data.asistencia == 'si',
+                onSelected: (selected) {
+                  if (selected) onAsistenciaChanged('si');
+                },
+                selectedColor: gold,
+                labelStyle: TextStyle(
+                  color: data.asistencia == 'si' ? Colors.black : Colors.black87,
+                  fontWeight: data.asistencia == 'si' ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+              ChoiceChip(
+                label: const Text('No'),
+                selected: data.asistencia == 'no',
+                onSelected: (selected) {
+                  if (selected) onAsistenciaChanged('no');
+                },
+                selectedColor: gold,
+                labelStyle: TextStyle(
+                  color: data.asistencia == 'no' ? Colors.black : Colors.black87,
+                  fontWeight: data.asistencia == 'no' ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           const Text('Grupo de edad', style: TextStyle(fontWeight: FontWeight.w500)),
@@ -1617,126 +1984,416 @@ class _CompanionCard extends StatelessWidget {
 }
 
 // =================== Subida de imágenes y vídeos a Appwrite ===================
-Future<void> _uploadMediaWithAppwrite(BuildContext context) async {
-  await _uploadViaRest(context);
+Future<bool> _uploadMediaWithAppwrite(BuildContext context, {VoidCallback? onComplete}) async {
+  return await _uploadViaRest(context, onComplete: onComplete);
 }
 
 String _inferMime(String? ext) {
   final e = (ext ?? '').toLowerCase();
+  // Formatos de imagen
   if (e == 'jpg' || e == 'jpeg') return 'image/jpeg';
   if (e == 'png') return 'image/png';
   if (e == 'webp') return 'image/webp';
+  if (e == 'gif') return 'image/gif';
+  if (e == 'bmp') return 'image/bmp';
+  if (e == 'svg') return 'image/svg+xml';
   if (e == 'heic' || e == 'heif') return 'image/heic';
-  if (e == 'mp4') return 'video/mp4';
+  if (e == 'tiff' || e == 'tif') return 'image/tiff';
+  // Formatos de video
+  if (e == 'mp4' || e == 'm4v') return 'video/mp4';
   if (e == 'mov') return 'video/quicktime';
   if (e == 'avi') return 'video/x-msvideo';
   if (e == 'mkv') return 'video/x-matroska';
+  if (e == 'webm') return 'video/webm';
+  if (e == 'flv') return 'video/x-flv';
+  if (e == 'wmv') return 'video/x-ms-wmv';
+  if (e == '3gp') return 'video/3gpp';
   return 'application/octet-stream';
 }
 
-Future<void> _uploadViaRest(BuildContext context) async {
-  // Selección de archivos
+Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) async {
+  // Selección de archivos (fotos y videos)
   final result = await FilePicker.platform.pickFiles(
     allowMultiple: true,
-    type: FileType.custom,
-    allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
+    type: FileType.media, // Permite seleccionar fotos y videos
     withData: true,
   );
   if (result == null || result.files.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No seleccionaste archivos.')));
-    return;
+    return false;
   }
   if (_appwriteEndpoint.isEmpty || _appwriteProjectId.isEmpty || _appwriteStorageId.isEmpty || _appwriteDatabaseId.isEmpty || _galleryCollectionId.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backend no configurado. Faltan variables de Appwrite.')));
-    return;
+    return false;
   }
 
   final scaffold = ScaffoldMessenger.of(context);
-  scaffold.showSnackBar(SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')));
-
-  for (final file in result.files) {
-    final bytes = file.bytes;
-    if (bytes == null) {
-      scaffold.showSnackBar(SnackBar(content: Text('No pude leer datos de ${file.name}.')));
-      continue;
+  
+  // Mostrar diálogo de progreso
+  final uploadProgress = <String, double>{};
+  final uploadStatus = <String, String>{};
+  bool uploadCompleted = false;
+  int successCount = 0;
+  int failCount = 0;
+  void Function()? updateDialog;
+  
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        updateDialog = () => setDialogState(() {});
+        return AlertDialog(
+          title: const Text('Subiendo archivos'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total: ${result.files.length} archivo(s)'),
+                const SizedBox(height: 16),
+                ...result.files.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final file = entry.value;
+                  final fileName = file.name.length > 30 ? '${file.name.substring(0, 30)}...' : file.name;
+                  final progress = uploadProgress[file.name] ?? 0.0;
+                  final status = uploadStatus[file.name] ?? 'Esperando...';
+                  final fileSizeMB = (file.size ?? 0) / (1024 * 1024);
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${index + 1}. $fileName',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              fileSizeMB > 0 ? '${fileSizeMB.toStringAsFixed(1)} MB' : '',
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey[300],
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            status.contains('Error') || status.contains('Falló')
+                                ? Colors.red
+                                : status.contains('Completado')
+                                    ? Colors.green
+                                    : const Color(0xFFD4AF37),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          status,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: status.contains('Error') || status.contains('Falló')
+                                ? Colors.red
+                                : status.contains('Completado')
+                                    ? Colors.green
+                                    : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                if (uploadCompleted) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Completado: $successCount exitoso(s), $failCount fallido(s)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: failCount > 0 ? Colors.orange : Colors.green,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: uploadCompleted
+              ? [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cerrar'),
+                  ),
+                ]
+              : [],
+        );
+      },
+    ),
+  );
+  
+  // Ejecutar subida después de mostrar el diálogo
+  Future.microtask(() async {
+    // Construir endpoint
+    String endpoint = _appwriteEndpoint.trim();
+    if (endpoint.endsWith('/')) {
+      endpoint = endpoint.substring(0, endpoint.length - 1);
+    }
+    if (!endpoint.endsWith('/v1')) {
+      endpoint = '$endpoint/v1';
     }
 
-    try {
-      // En Appwrite, primero subimos el archivo a Storage
-      // 1. Subir archivo a Storage
-      // El endpoint ya incluye /v1, así que solo añadimos la ruta
-      final storageRequest = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_appwriteEndpoint/storage/$_appwriteStorageId/files'),
-      );
+    // Subir archivos secuencialmente para mejor control
+    for (int i = 0; i < result.files.length; i++) {
+      final file = result.files[i];
+      final bytes = file.bytes;
       
+      if (bytes == null) {
+        uploadStatus[file.name] = 'Error: No se pudo leer el archivo';
+        failCount++;
+        continue;
+      }
+
+      final fileSizeMB = bytes.length / (1024 * 1024);
+      uploadProgress[file.name] = 0.0;
+      uploadStatus[file.name] = 'Preparando... (${fileSizeMB.toStringAsFixed(1)} MB)';
+      
+      // Actualizar diálogo
+      updateDialog?.call();
+
+      uploadStatus[file.name] = 'Subiendo...';
+      uploadProgress[file.name] = 0.1;
+      updateDialog?.call();
+      
+      final storageUrl = Uri.parse('$endpoint/storage/buckets/$_appwriteStorageId/files');
+      print('📤 Subiendo archivo ${i + 1}/${result.files.length}: ${file.name}');
+      print('📤 Tamaño: ${(bytes.length / (1024 * 1024)).toStringAsFixed(2)} MB');
+      
+      final storageRequest = http.MultipartRequest('POST', storageUrl);
+      
+      // Headers requeridos
       storageRequest.headers['X-Appwrite-Project'] = _appwriteProjectId;
       if (_appwriteApiKey.isNotEmpty) {
         storageRequest.headers['X-Appwrite-Key'] = _appwriteApiKey;
       }
       
       final mime = _inferMime(file.extension);
-      storageRequest.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: file.name,
-        ),
+      print('📤 MIME type: $mime');
+      
+      // Agregar archivo
+      final multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: file.name,
       );
+      storageRequest.files.add(multipartFile);
       
-      storageRequest.fields['fileId'] = 'unique()'; // Appwrite genera ID único
+      // fileId es opcional, Appwrite puede generarlo automáticamente
+      storageRequest.fields['fileId'] = 'unique()';
       
-      final storageResponse = await storageRequest.send();
-      final storageResponseBody = await http.Response.fromStream(storageResponse);
+      uploadProgress[file.name] = 0.2;
+      uploadStatus[file.name] = 'Enviando datos al servidor...';
+      updateDialog?.call();
       
-      if (storageResponse.statusCode >= 300) {
-        scaffold.showSnackBar(SnackBar(content: Text('Fallo subiendo archivo ${file.name}: ${storageResponse.statusCode} ${storageResponseBody.body}')));
-        continue;
+      print('📤 Enviando request a Storage...');
+      final startTime = DateTime.now();
+      
+      // Simular progreso durante la subida para archivos grandes
+      Timer? progressTimer;
+      if (fileSizeMB > 10) {
+        progressTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+          final elapsed = DateTime.now().difference(startTime).inSeconds;
+          // Simular progreso gradual (no real, pero da feedback visual)
+          if (uploadProgress[file.name]! < 0.8) {
+            uploadProgress[file.name] = (0.2 + (elapsed / 120) * 0.6).clamp(0.2, 0.8);
+            uploadStatus[file.name] = 'Subiendo... (${elapsed}s)';
+            updateDialog?.call();
+          }
+        });
       }
       
-      final storageData = jsonDecode(storageResponseBody.body) as Map<String, dynamic>;
-      final fileId = storageData[r'$id'] as String? ?? storageData['id'] as String?;
+      try {
+        print('📤 Iniciando envío del archivo...');
+        final sendStartTime = DateTime.now();
+        
+        // Usar un timeout más corto y detectar si la conexión está activa
+        final storageResponse = await storageRequest.send().timeout(
+          const Duration(minutes: 10), // Timeout de 10 minutos (más razonable)
+          onTimeout: () {
+            progressTimer?.cancel();
+            final elapsed = DateTime.now().difference(sendStartTime).inSeconds;
+            print('⏱️ Timeout después de ${elapsed}s');
+            throw TimeoutException('La subida del archivo ${file.name} excedió el tiempo límite de 10 minutos. El archivo puede ser demasiado grande o la conexión es muy lenta.');
+          },
+        );
+        
+        progressTimer?.cancel();
+        final elapsed = DateTime.now().difference(sendStartTime).inSeconds;
+        print('✅ Respuesta recibida después de ${elapsed}s');
+        
+        uploadProgress[file.name] = 0.8;
+        uploadStatus[file.name] = 'Procesando respuesta...';
+        updateDialog?.call();
       
-      if (fileId == null) {
-        scaffold.showSnackBar(SnackBar(content: Text('No se pudo obtener ID del archivo ${file.name}.')));
-        continue;
+        print('📥 Leyendo respuesta del servidor...');
+        final responseStartTime = DateTime.now();
+        
+        final storageResponseBody = await http.Response.fromStream(storageResponse).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw TimeoutException('Timeout leyendo la respuesta del servidor');
+          },
+        );
+        
+        final responseElapsed = DateTime.now().difference(responseStartTime).inSeconds;
+        print('📥 Respuesta Storage: ${storageResponse.statusCode} (leída en ${responseElapsed}s)');
+        print('📥 Body: ${storageResponseBody.body.length > 500 ? storageResponseBody.body.substring(0, 500) + "..." : storageResponseBody.body}');
+        
+        if (storageResponse.statusCode >= 300) {
+          final errorMsg = 'Error ${storageResponse.statusCode}: ${storageResponseBody.body}';
+          print('❌ $errorMsg');
+          
+          String statusMsg = 'Error ${storageResponse.statusCode}';
+          if (storageResponse.statusCode == 502) {
+            statusMsg = 'Error 502 Bad Gateway: El servidor rechazó el archivo (${fileSizeMB.toStringAsFixed(1)} MB). Verifica los límites de tamaño en Appwrite y los timeouts del servidor.';
+          } else if (storageResponse.statusCode == 0 || storageResponseBody.body.contains('CORS')) {
+            statusMsg = 'Error CORS: Ve a Appwrite → Settings → Platforms → Agregar plataforma web → URL: http://localhost:8080';
+          } else {
+            statusMsg = 'Error ${storageResponse.statusCode}: ${storageResponseBody.body.length > 100 ? storageResponseBody.body.substring(0, 100) + "..." : storageResponseBody.body}';
+          }
+          
+          uploadStatus[file.name] = statusMsg;
+          uploadProgress[file.name] = 0.0;
+          failCount++;
+          updateDialog?.call();
+          continue;
+        }
+        
+        final storageData = jsonDecode(storageResponseBody.body) as Map<String, dynamic>;
+        print('📥 Storage data: $storageData');
+        
+        uploadProgress[file.name] = 0.9;
+        updateDialog?.call();
+        
+        final fileId = storageData[r'$id'] as String? ?? storageData['id'] as String?;
+        
+        if (fileId == null) {
+          print('❌ No se encontró \$id en la respuesta: $storageData');
+          uploadStatus[file.name] = 'Error: No se obtuvo ID del archivo';
+          uploadProgress[file.name] = 0.0;
+          failCount++;
+          updateDialog?.call();
+          continue;
+        }
+        
+        print('✅ Archivo subido correctamente. File ID: $fileId');
+        uploadStatus[file.name] = 'Creando registro...';
+        updateDialog?.call();
+        
+        // 2. Crear documento en la colección de galería con referencia al archivo
+        final docUrl = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_galleryCollectionId/documents');
+        print('📤 Creando documento en: $docUrl');
+        
+        final docRequest = http.Request('POST', docUrl);
+        
+        docRequest.headers['Content-Type'] = 'application/json';
+        docRequest.headers['X-Appwrite-Project'] = _appwriteProjectId;
+        if (_appwriteApiKey.isNotEmpty) {
+          docRequest.headers['X-Appwrite-Key'] = _appwriteApiKey;
+        }
+        
+        final docPayload = {
+          'documentId': 'unique()',
+          'data': {
+            'fileId': fileId,
+            'approved': false,
+            'uploaded_at': DateTime.now().toIso8601String(),
+          },
+        };
+        
+        docRequest.body = jsonEncode(docPayload);
+        print('📤 Payload documento: $docPayload');
+        
+        final docResponse = await docRequest.send();
+        final docResponseBody = await http.Response.fromStream(docResponse);
+        
+        print('📥 Respuesta Documento: ${docResponse.statusCode}');
+        print('📥 Body: ${docResponseBody.body}');
+        
+        if (docResponse.statusCode >= 300) {
+          final errorMsg = 'Error ${docResponse.statusCode}: ${docResponseBody.body}';
+          print('❌ $errorMsg');
+          uploadStatus[file.name] = 'Error creando registro';
+          uploadProgress[file.name] = 0.0;
+          failCount++;
+        } else {
+          print('✅ Documento creado correctamente para ${file.name}');
+          uploadStatus[file.name] = 'Completado ✓';
+          uploadProgress[file.name] = 1.0;
+          successCount++;
+        }
+        
+        updateDialog?.call();
+      } catch (e, stackTrace) {
+        progressTimer?.cancel();
+        print('❌ Excepción subiendo ${file.name}: $e');
+        print('❌ Stack trace: $stackTrace');
+        String errorMsg = e.toString();
+        String userMsg = 'Error desconocido';
+        
+        // Detectar múltiples errores
+        final hasCors = errorMsg.contains('CORS') || errorMsg.contains('Access-Control-Allow-Origin') || errorMsg.contains('Failed to fetch');
+        final has502 = errorMsg.contains('502') || errorMsg.contains('Bad Gateway') || errorMsg.contains('ERR_FAILED 502');
+        
+        if (hasCors && has502) {
+          userMsg = 'Error CORS y 502: Configura "localhost:8080" como plataforma en Appwrite (Settings → Platforms) y verifica los límites de tamaño de archivo en el servidor.';
+        } else if (hasCors) {
+          userMsg = 'Error CORS: Ve a Appwrite → Settings → Platforms → Agregar plataforma web → URL: http://localhost:8080';
+        } else if (has502) {
+          userMsg = 'Error 502 Bad Gateway: El servidor rechazó el archivo (${fileSizeMB.toStringAsFixed(1)} MB). Verifica los límites de tamaño en Appwrite (_APP_STORAGE_LIMIT) y los timeouts del servidor.';
+        } else if (errorMsg.contains('TimeoutException') || errorMsg.contains('timeout')) {
+          userMsg = 'Timeout: El archivo es muy grande (${fileSizeMB.toStringAsFixed(1)} MB) o la conexión es muy lenta. Intenta con un archivo más pequeño o verifica tu conexión.';
+        } else if (errorMsg.contains('SocketException') || errorMsg.contains('Connection')) {
+          userMsg = 'Error de conexión: La conexión con el servidor se perdió. Verifica tu conexión a internet.';
+        } else {
+          userMsg = errorMsg.length > 60 ? errorMsg.substring(0, 60) + '...' : errorMsg;
+        }
+        
+        uploadStatus[file.name] = userMsg;
+        uploadProgress[file.name] = 0.0;
+        failCount++;
+        updateDialog?.call();
       }
-      
-      // 2. Crear documento en la colección de galería con referencia al archivo
-      // El endpoint ya incluye /v1, así que solo añadimos la ruta
-      final docRequest = http.Request(
-        'POST',
-        Uri.parse('$_appwriteEndpoint/databases/$_appwriteDatabaseId/collections/$_galleryCollectionId/documents'),
-      );
-      
-      docRequest.headers['Content-Type'] = 'application/json';
-      docRequest.headers['X-Appwrite-Project'] = _appwriteProjectId;
-      if (_appwriteApiKey.isNotEmpty) {
-        docRequest.headers['X-Appwrite-Key'] = _appwriteApiKey;
-      }
-      
-      docRequest.body = jsonEncode({
-        'documentId': 'unique()',
-        'data': {
-          'fileId': fileId,
-          'approved': false,
-          'uploaded_at': DateTime.now().toIso8601String(),
-        },
-      });
-      
-      final docResponse = await docRequest.send();
-      final docResponseBody = await http.Response.fromStream(docResponse);
-      
-      if (docResponse.statusCode >= 300) {
-        scaffold.showSnackBar(SnackBar(content: Text('Fallo creando registro para ${file.name}: ${docResponse.statusCode} ${docResponseBody.body}')));
-      }
-    } catch (e) {
-      scaffold.showSnackBar(SnackBar(content: Text('Error subiendo ${file.name}: $e')));
     }
-  }
 
-  scaffold.clearSnackBars();
-  scaffold.showSnackBar(const SnackBar(content: Text('¡Archivos subidos correctamente!')));
+    // Marcar como completado
+    uploadCompleted = true;
+    updateDialog?.call();
+    
+    if (successCount > 0 && context.mounted) {
+      scaffold.showSnackBar(SnackBar(
+        content: Text('✅ $successCount archivo(s) subido(s) correctamente${failCount > 0 ? ". $failCount fallaron." : ""}'),
+        backgroundColor: failCount > 0 ? Colors.orange : Colors.green,
+        duration: const Duration(seconds: 5),
+      ));
+      
+      // Ejecutar callback si se proporcionó (incluso si algunos fallaron, si hubo al menos un éxito)
+      if (onComplete != null && successCount > 0) {
+        print('🔄 Ejecutando callback de actualización...');
+        onComplete();
+      }
+    }
+    
+    return successCount > 0;
+  });
+  
+  return false;
 }
 
 // =================== AUTENTICACIÓN ADMIN ===================
@@ -1758,6 +2415,28 @@ void _setAdminAuthenticated(bool value) {
     }
   } catch (e) {
     print('Error guardando autenticación: $e');
+  }
+}
+
+// =================== AUTENTICACIÓN GALERÍA ===================
+bool _isGalleryAuthenticated() {
+  try {
+    final authKey = html.window.localStorage['gallery_authenticated'];
+    return authKey == 'true';
+  } catch (e) {
+    return false;
+  }
+}
+
+void _setGalleryAuthenticated(bool value) {
+  try {
+    if (value) {
+      html.window.localStorage['gallery_authenticated'] = 'true';
+    } else {
+      html.window.localStorage.remove('gallery_authenticated');
+    }
+  } catch (e) {
+    print('Error guardando autenticación galería: $e');
   }
 }
 
@@ -1922,6 +2601,681 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =================== PÁGINA DE LOGIN GALERÍA ===================
+class GalleryLoginPage extends StatefulWidget {
+  const GalleryLoginPage({super.key});
+  @override
+  State<GalleryLoginPage> createState() => _GalleryLoginPageState();
+}
+
+class _GalleryLoginPageState extends State<GalleryLoginPage> {
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  void _login() {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (username.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Por favor, completa todos los campos';
+      });
+      return;
+    }
+
+    if (username == 'boda' && password == '25deabril') {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      
+      _setGalleryAuthenticated(true);
+      
+      // Redirigir a la página de galería
+      Future.delayed(const Duration(milliseconds: 300), () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const GalleryPage()),
+        );
+      });
+    } else {
+      setState(() {
+        _errorMessage = 'Usuario o contraseña incorrectos';
+        _passwordController.clear();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Card(
+              color: Colors.grey[900],
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Galería',
+                      style: GoogleFonts.allura(
+                        fontSize: 36,
+                        color: const Color(0xFFD4AF37),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Iniciar sesión',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    TextField(
+                      controller: _usernameController,
+                      decoration: InputDecoration(
+                        labelText: 'Usuario',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey[700]!),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFFD4AF37)),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onSubmitted: (_) => _login(),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey[700]!),
+                        ),
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFFD4AF37)),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      obscureText: true,
+                      onSubmitted: (_) => _login(),
+                    ),
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red[900]?.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: _isLoading ? null : _login,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFD4AF37),
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                              ),
+                            )
+                          : const Text('Iniciar sesión'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =================== PÁGINA DE GALERÍA ===================
+class GalleryPage extends StatefulWidget {
+  const GalleryPage({super.key});
+  @override
+  State<GalleryPage> createState() => _GalleryPageState();
+}
+
+class _GalleryPageState extends State<GalleryPage> {
+  List<Map<String, dynamic>> _photos = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotos();
+  }
+
+  Future<void> _loadPhotos() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      if (_appwriteEndpoint.isEmpty || _appwriteProjectId.isEmpty || _appwriteDatabaseId.isEmpty || _galleryCollectionId.isEmpty) {
+        setState(() {
+          _errorMessage = 'Backend no configurado';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      String endpoint = _appwriteEndpoint.trim();
+      if (endpoint.endsWith('/')) {
+        endpoint = endpoint.substring(0, endpoint.length - 1);
+      }
+
+      final url = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_galleryCollectionId/documents');
+      
+      final response = await http.get(
+        url,
+        headers: {
+          'X-Appwrite-Project': _appwriteProjectId,
+          if (_appwriteApiKey.isNotEmpty) 'X-Appwrite-Key': _appwriteApiKey,
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final documents = data['documents'] as List<dynamic>? ?? [];
+        
+        // Primero obtener la lista de archivos que realmente existen en el storage
+        final existingFileIds = <String>{};
+        try {
+          final storageListUrl = Uri.parse('$endpoint/storage/buckets/$_appwriteStorageId/files');
+          print('🔍 Verificando archivos en storage: $storageListUrl');
+          
+          final storageListResponse = await http.get(
+            storageListUrl,
+            headers: {
+              'X-Appwrite-Project': _appwriteProjectId,
+              if (_appwriteApiKey.isNotEmpty) 'X-Appwrite-Key': _appwriteApiKey,
+            },
+          ).timeout(const Duration(seconds: 15));
+          
+          if (storageListResponse.statusCode == 200) {
+            final storageData = jsonDecode(storageListResponse.body) as Map<String, dynamic>;
+            final storageFiles = storageData['files'] as List<dynamic>? ?? [];
+            for (final file in storageFiles) {
+              final fileData = file as Map<String, dynamic>;
+              final id = fileData[r'$id'] as String?;
+              if (id != null) {
+                existingFileIds.add(id);
+              }
+            }
+            print('✅ Encontrados ${existingFileIds.length} archivos en storage');
+          } else {
+            print('⚠️ Error al listar archivos del storage: ${storageListResponse.statusCode}');
+          }
+        } catch (e) {
+          print('❌ Error al verificar archivos del storage: $e');
+        }
+        
+        // Solo agregar fotos cuyos archivos realmente existen en el storage
+        final photos = <Map<String, dynamic>>[];
+        for (final doc in documents) {
+          final docData = doc as Map<String, dynamic>;
+          final fileId = docData['fileId'] as String?;
+          // Solo agregar si tiene fileId válido y el archivo existe en el storage
+          if (fileId != null && fileId.isNotEmpty && existingFileIds.contains(fileId)) {
+            // Obtener URL de preview del archivo
+            final fileUrl = '$endpoint/storage/buckets/$_appwriteStorageId/files/$fileId/view?project=$_appwriteProjectId';
+            photos.add({
+              'id': docData[r'$id'] as String? ?? '',
+              'fileId': fileId,
+              'url': fileUrl,
+              'uploaded_at': docData['uploaded_at'] as String? ?? '',
+            });
+            print('✅ Agregando foto válida: $fileId');
+          } else if (fileId != null && fileId.isNotEmpty) {
+            print('⚠️ Documento con fileId $fileId pero el archivo no existe en storage');
+          }
+        }
+        
+        // Ordenar fotos por fecha de subida (más recientes primero)
+        photos.sort((a, b) {
+          final dateA = a['uploaded_at'] as String? ?? '';
+          final dateB = b['uploaded_at'] as String? ?? '';
+          if (dateA.isEmpty && dateB.isEmpty) return 0;
+          if (dateA.isEmpty) return 1; // Las sin fecha van al final
+          if (dateB.isEmpty) return -1; // Las sin fecha van al final
+          try {
+            final dtA = DateTime.parse(dateA);
+            final dtB = DateTime.parse(dateB);
+            return dtB.compareTo(dtA); // Orden descendente (más recientes primero)
+          } catch (e) {
+            // Si hay error al parsear, comparar como string
+            return dateB.compareTo(dateA);
+          }
+        });
+        
+        print('📸 Total de fotos válidas: ${photos.length}');
+        
+        setState(() {
+          _photos = photos;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Error al cargar fotos: ${response.statusCode}';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _uploadNewFiles() async {
+    await _uploadMediaWithAppwrite(
+      context,
+      onComplete: () {
+        // Esperar un momento para que los archivos estén disponibles en el storage
+        // y luego recargar automáticamente después de subir
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            _loadPhotos();
+          }
+        });
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(
+          'Fotos / Videos',
+          style: GoogleFonts.allura(
+            fontSize: 28,
+            color: const Color(0xFFD4AF37),
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.upload),
+            tooltip: 'Subir archivos',
+            onPressed: _uploadNewFiles,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesión',
+            onPressed: () {
+              _setGalleryAuthenticated(false);
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const HomePage()),
+              );
+            },
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadPhotos,
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                )
+              : _photos.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          const Text('No hay fotos aún', style: TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _uploadNewFiles,
+                            icon: const Icon(Icons.upload),
+                            label: const Text('Subir primera foto'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD4AF37),
+                              foregroundColor: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadPhotos,
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: _photos.length == 1 ? 1 : (_photos.length == 2 ? 2 : 3),
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
+                        itemCount: _photos.length,
+                        itemBuilder: (context, index) {
+                          final photo = _photos[index];
+                          final isVideo = photo['url'].toString().contains('.mp4') || 
+                                         photo['url'].toString().contains('.mov') ||
+                                         photo['url'].toString().contains('video');
+                          return GestureDetector(
+                            onTap: () {
+                              // Mostrar imagen/video en pantalla completa usando HTML
+                              showDialog(
+                                context: context,
+                                builder: (context) => Dialog(
+                                  backgroundColor: Colors.transparent,
+                                  insetPadding: const EdgeInsets.all(16),
+                                  child: Stack(
+                                    children: [
+                                      Center(
+                                        child: isVideo
+                                            ? SizedBox(
+                                                width: MediaQuery.of(context).size.width * 0.9,
+                                                height: MediaQuery.of(context).size.height * 0.8,
+                                                child: Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(Icons.videocam, size: 64, color: Colors.white),
+                                                    const SizedBox(height: 16),
+                                                    const Text(
+                                                      'Video',
+                                                      style: TextStyle(color: Colors.white, fontSize: 18),
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    ElevatedButton.icon(
+                                                      onPressed: () {
+                                                        html.window.open(photo['url'] as String, '_blank');
+                                                      },
+                                                      icon: const Icon(Icons.play_arrow),
+                                                      label: const Text('Reproducir video'),
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: const Color(0xFFD4AF37),
+                                                        foregroundColor: Colors.black,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              )
+                                            : InteractiveViewer(
+                                                child: Image.network(
+                                                  photo['url'] as String,
+                                                  fit: BoxFit.contain,
+                                                  errorBuilder: (_, __, ___) => const Icon(Icons.error, color: Colors.red, size: 48),
+                                                ),
+                                              ),
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                                          onPressed: () => Navigator.pop(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: isVideo
+                                    ? Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            photo['url'] as String,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              color: Colors.grey[800],
+                                              child: const Icon(Icons.videocam, color: Colors.grey),
+                                            ),
+                                          ),
+                                          const Center(
+                                            child: Icon(Icons.play_circle_filled, color: Colors.white, size: 48),
+                                          ),
+                                        ],
+                                      )
+                                    : Image.network(
+                                        photo['url'] as String,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: Colors.grey[800],
+                                          child: const Icon(Icons.image, color: Colors.grey),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+    );
+  }
+}
+
+// =================== PÁGINA DE SUBIDA PÚBLICA (QR) ===================
+class UploadPage extends StatefulWidget {
+  const UploadPage({super.key});
+  @override
+  State<UploadPage> createState() => _UploadPageState();
+}
+
+class _UploadPageState extends State<UploadPage> {
+  bool _isUploading = false;
+
+  Future<void> _uploadFiles() async {
+    setState(() {
+      _isUploading = true;
+    });
+    
+    await _uploadMediaWithAppwrite(context);
+    
+    setState(() {
+      _isUploading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo o título
+                  Text(
+                    'L&D',
+                    style: GoogleFonts.allura(
+                      fontSize: 64,
+                      color: const Color(0xFFD4AF37),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Subir Fotos / Videos',
+                    style: GoogleFonts.allura(
+                      fontSize: 36,
+                      color: const Color(0xFFD4AF37),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Revive tus momentos',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 48),
+                  
+                  // Botón de subida
+                  SizedBox(
+                    width: double.infinity,
+                    height: 120,
+                    child: ElevatedButton.icon(
+                      onPressed: _isUploading ? null : _uploadFiles,
+                      icon: _isUploading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                              ),
+                            )
+                          : const Icon(Icons.cloud_upload, size: 48),
+                      label: Text(
+                        _isUploading ? 'Subiendo archivos...' : 'Seleccionar y Subir Archivos',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD4AF37),
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Instrucciones
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900]?.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: Color(0xFFD4AF37), size: 20),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Instrucciones',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          '• Puedes seleccionar múltiples archivos a la vez\n'
+                          '• Se admiten fotos y videos\n'
+                          '• Los archivos se subirán automáticamente',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.left,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Botón para volver al inicio
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const HomePage()),
+                    ),
+                    icon: const Icon(Icons.home),
+                    label: const Text('Volver al inicio'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -2183,6 +3537,7 @@ class _AdminPageState extends State<AdminPage> {
       acompanantesControllers.add({
         'nombre': TextEditingController(text: comp['nombre']?.toString() ?? ''),
         'edad': comp['edad']?.toString().toLowerCase() ?? 'adulto',
+        'asistencia': comp['asistencia']?.toString().toLowerCase() ?? 'si',
         'alergias': TextEditingController(text: comp['alergias']?.toString() ?? ''),
       });
     }
@@ -2312,6 +3667,7 @@ class _AdminPageState extends State<AdminPage> {
                                 acompanantesControllers.add({
                                   'nombre': TextEditingController(),
                                   'edad': 'adulto',
+                                  'asistencia': 'si',
                                   'alergias': TextEditingController(),
                                 });
                               }
@@ -2324,6 +3680,7 @@ class _AdminPageState extends State<AdminPage> {
                                 acompanantesControllers.add({
                                   'nombre': TextEditingController(),
                                   'edad': 'adulto',
+                                  'asistencia': 'si',
                                   'alergias': TextEditingController(),
                                 });
                               }),
@@ -2368,6 +3725,18 @@ class _AdminPageState extends State<AdminPage> {
                             TextField(
                               controller: comp['nombre'] as TextEditingController,
                               decoration: const InputDecoration(labelText: 'Nombre *'),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              value: comp['asistencia'] as String,
+                              decoration: const InputDecoration(labelText: 'Asistencia'),
+                              items: const [
+                                DropdownMenuItem(value: 'si', child: Text('Sí')),
+                                DropdownMenuItem(value: 'no', child: Text('No')),
+                              ],
+                              onChanged: (value) => setDialogState(() {
+                                comp['asistencia'] = value as String;
+                              }),
                             ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
@@ -2443,10 +3812,13 @@ class _AdminPageState extends State<AdminPage> {
                 }
                 if (acompanante == 'si') {
                   for (final comp in acompanantesControllers) {
-                    final edad = comp['edad'] as String;
-                    if (edad == 'adulto') countAdult++;
-                    if (edad == '12-18') countTeen++;
-                    if (edad == '0-12') countKid++;
+                    // Solo contar acompañantes que van a asistir
+                    if (comp['asistencia'] == 'si') {
+                      final edad = comp['edad'] as String;
+                      if (edad == 'adulto') countAdult++;
+                      if (edad == '12-18') countTeen++;
+                      if (edad == '0-12') countKid++;
+                    }
                   }
                 }
 
@@ -2457,6 +3829,7 @@ class _AdminPageState extends State<AdminPage> {
                     return {
                       'nombre': (comp['nombre'] as TextEditingController).text.trim().toUpperCase(),
                       'edad': (comp['edad'] as String).toUpperCase(),
+                      'asistencia': (comp['asistencia'] as String).toUpperCase(),
                       'alergias': (comp['alergias'] as TextEditingController).text.trim().isEmpty
                           ? null
                           : (comp['alergias'] as TextEditingController).text.trim().toUpperCase(),
@@ -2640,6 +4013,7 @@ class _AdminPageState extends State<AdminPage> {
         'Álbum Digital',
         'Mensaje Novios',
         'Nombre Acompañante',
+        'Asistencia Acompañante',
         'Fecha Creación',
         'Origen',
       ];
@@ -2691,6 +4065,7 @@ class _AdminPageState extends State<AdminPage> {
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['album_digital']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['mensaje_novios']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Nombre Acompañante vacío si no hay
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Asistencia Acompañante vacío si no hay
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? '');
           currentRow++;
@@ -2714,6 +4089,7 @@ class _AdminPageState extends State<AdminPage> {
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['album_digital']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['mensaje_novios']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_getCompanionsNames(acompanantes)); // Nombres de acompañantes
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Asistencia Acompañante vacío para invitado principal
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? '');
           currentRow++;
@@ -2725,7 +4101,7 @@ class _AdminPageState extends State<AdminPage> {
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['nombre']?.toString() ?? '');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['email']?.toString() ?? ''); // Mismo email del principal
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['phone']?.toString() ?? ''); // Mismo teléfono del principal
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['asistencia']?.toString() ?? ''); // Misma asistencia
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['asistencia']?.toString() ?? 'SI'); // Asistencia del acompañante (columna Asistencia)
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_formatAgeRange(compMap['edad']?.toString()));
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['alergias']?.toString() ?? '');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('ACOMPAÑANTE');
@@ -2735,12 +4111,13 @@ class _AdminPageState extends State<AdminPage> {
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(0);
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? '');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? '');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Canciones
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Álbum Digital
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Mensaje Novios
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Nombre Acompañante vacío para fila de acompañante
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['asistencia']?.toString() ?? 'SI'); // Asistencia Acompañante (columna específica)
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? ''); // Fecha Creación
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? ''); // Origen
             currentRow++;
           }
         }
@@ -3002,6 +4379,7 @@ class _AdminPageState extends State<AdminPage> {
                 ),
                 const SizedBox(height: 4),
                 _buildDetailRow('Nombre', comp['nombre']),
+                _buildDetailRow('Asistencia', comp['asistencia'] ?? 'SI'),
                 _buildDetailRow('Edad', comp['edad']),
                 _buildDetailRow('Alergias', comp['alergias'] ?? 'Ninguna'),
               ],
