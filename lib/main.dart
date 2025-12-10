@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
@@ -273,23 +275,20 @@ class _HeroCard extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: border, width: 4),
                   ),
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.center,
                   child: ClipOval(
-                    child: Center(
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        filterQuality: FilterQuality.high,
-                        errorBuilder: (_, __, ___) => Text(
-                          'L&D',
-                          style: GoogleFonts.allura(
-                            fontSize: 90,
-                            color: border,
-                            fontWeight: FontWeight.w600,
-                            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-                          ),
-                        ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _LogoWithTransparentBackground(
+                      imagePath: 'assets/images/logoNuevo.png',
+                      width: 172,
+                      height: 172,
+                      fallbackText: 'L&D',
+                      textStyle: GoogleFonts.allura(
+                        fontSize: 90,
+                        color: border,
+                        fontWeight: FontWeight.w600,
+                        shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
                       ),
                     ),
                   ),
@@ -1599,22 +1598,176 @@ class _LogoCircle extends StatelessWidget {
         color: Colors.transparent,
         boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black45, offset: Offset(0, 2))],
       ),
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.zero,
+      alignment: Alignment.center,
       child: ClipOval(
+        clipBehavior: Clip.antiAlias,
+        child: _LogoWithTransparentBackground(
+          imagePath: 'assets/images/logoNuevo.png',
+          width: 154,
+          height: 154,
+          fallbackText: 'L&D',
+          textStyle: GoogleFonts.allura(
+            fontSize: 72,
+            color: const Color(0xFFD4AF37),
+            fontWeight: FontWeight.w600,
+            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LogoWithTransparentBackground extends StatefulWidget {
+  final String imagePath;
+  final double width;
+  final double height;
+  final String fallbackText;
+  final TextStyle textStyle;
+
+  const _LogoWithTransparentBackground({
+    required this.imagePath,
+    required this.width,
+    required this.height,
+    required this.fallbackText,
+    required this.textStyle,
+  });
+
+  @override
+  State<_LogoWithTransparentBackground> createState() => _LogoWithTransparentBackgroundState();
+}
+
+class _LogoWithTransparentBackgroundState extends State<_LogoWithTransparentBackground> {
+  html.ImageElement? _processedImage;
+  bool _isProcessing = false;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _processImage();
+  }
+
+  Future<void> _processImage() async {
+    if (kIsWeb) {
+      setState(() => _isProcessing = true);
+      try {
+        final image = html.ImageElement(src: widget.imagePath);
+        await image.onLoad.first;
+        
+        final canvas = html.CanvasElement(width: image.width!, height: image.height!);
+        final ctx = canvas.context2D;
+        ctx.drawImage(image, 0, 0);
+        
+        final imageData = ctx.getImageData(0, 0, canvas.width!, canvas.height!);
+        final data = imageData.data;
+        
+        // Procesar píxeles: fondo blanco a dorado, dibujo (letras, circunferencia, flores, palo) a translúcido
+        // Color dorado: #D4AF37 = RGB(212, 175, 55)
+        const doradoR = 212;
+        const doradoG = 175;
+        const doradoB = 55;
+        
+        for (int i = 0; i < data.length; i += 4) {
+          final r = data[i];
+          final g = data[i + 1];
+          final b = data[i + 2];
+          final a = data[i + 3];
+          
+          // Calcular el brillo del píxel
+          final brightness = (r + g + b) / 3;
+          
+          // Si el píxel es blanco puro o casi blanco (fondo), convertirlo a dorado
+          if (brightness > 245 && a > 200) {
+            // Fondo blanco: convertir a dorado sólido
+            data[i] = doradoR;     // R = dorado
+            data[i + 1] = doradoG; // G = dorado
+            data[i + 2] = doradoB; // B = dorado
+            data[i + 3] = 255;     // A = opaco (dorado sólido)
+          } else {
+            // Todo lo demás (letras, circunferencia, flores, palo) hacerlo translúcido/transparente
+            data[i + 3] = 0; // A = completamente transparente
+          }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        
+        final processedImage = html.ImageElement();
+        processedImage.src = canvas.toDataUrl();
+        await processedImage.onLoad.first;
+        
+        // Registrar el elemento para HtmlElementView
+        final viewType = 'logo-${widget.imagePath.hashCode}';
+        ui_web.platformViewRegistry.registerViewFactory(
+          viewType,
+          (int viewId) => processedImage,
+        );
+        
+        if (mounted) {
+          setState(() {
+            _processedImage = processedImage;
+            _isProcessing = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _isProcessing = false;
+          });
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_hasError || (!kIsWeb && _isProcessing)) {
+      return Center(
+        child: Text(
+          widget.fallbackText,
+          style: widget.textStyle,
+        ),
+      );
+    }
+
+    if (kIsWeb && _processedImage != null) {
+      _processedImage!.style.width = '${widget.width}px';
+      _processedImage!.style.height = '${widget.height}px';
+      _processedImage!.style.objectFit = 'contain';
+      _processedImage!.style.display = 'block';
+      _processedImage!.style.margin = '0 auto';
+      _processedImage!.style.position = 'relative';
+      _processedImage!.style.left = '50%';
+      _processedImage!.style.transform = 'translateX(-50%)';
+      
+      return SizedBox(
+        width: widget.width,
+        height: widget.height,
         child: Center(
+          child: HtmlElementView(
+            viewType: 'logo-${widget.imagePath.hashCode}',
+          ),
+        ),
+      );
+    }
+
+    // Fallback a imagen normal mientras se procesa
+    return SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.contain,
           child: Image.asset(
-            'assets/images/logo.png',
+            widget.imagePath,
             fit: BoxFit.contain,
             alignment: Alignment.center,
             filterQuality: FilterQuality.high,
             errorBuilder: (_, __, ___) => Text(
-              'L&D',
-              style: GoogleFonts.allura(
-                fontSize: 72,
-                color: const Color(0xFFD4AF37),
-                fontWeight: FontWeight.w600,
-                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-              ),
+              widget.fallbackText,
+              style: widget.textStyle,
             ),
           ),
         ),
