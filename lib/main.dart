@@ -64,46 +64,28 @@ class BodaApp extends StatelessWidget {
         'formulario': (_) => const PreinscriptionPage(),
       },
       onGenerateRoute: (settings) {
-        print('🔍 [onGenerateRoute] Ruta solicitada: "${settings.name}"');
-        if (settings.name == '/formulario') {
-          print('✅ [onGenerateRoute] Redirigiendo a PreinscriptionPage');
+        if (settings.name == '/formulario' || settings.name == 'formulario') {
           return MaterialPageRoute(builder: (_) => const PreinscriptionPage());
         }
-        if (settings.name == 'formulario') {
-          print('✅ [onGenerateRoute] Redirigiendo a PreinscriptionPage');
-          return MaterialPageRoute(builder: (_) => const PreinscriptionPage());
-        }
-        if (settings.name == '/admin') {
-          print('✅ [onGenerateRoute] Redirigiendo a Admin');
+        if (settings.name == '/admin' || settings.name == 'admin') {
           return MaterialPageRoute(
             builder: (_) => _isAdminAuthenticated() ? const AdminPage() : const AdminLoginPage(),
           );
         }
-        if (settings.name == 'admin') {
-          print('✅ [onGenerateRoute] Redirigiendo a Admin');
-          return MaterialPageRoute(
-            builder: (_) => _isAdminAuthenticated() ? const AdminPage() : const AdminLoginPage(),
-          );
-        }
-        print('⚠️ [onGenerateRoute] Ruta no encontrada, retornando null');
         return null;
       },
       onGenerateInitialRoutes: (String initialRouteName) {
-        final path = Uri.base.path; // e.g. "/formulario" o "/admin" o "/"
-        print('🔍 [onGenerateInitialRoutes] Ruta inicial: "$path", initialRouteName: "$initialRouteName"');
+        final path = Uri.base.path;
         if (path == '/formulario' || path == 'formulario' || path == '/formulario/') {
-          print('✅ [onGenerateInitialRoutes] Redirigiendo a PreinscriptionPage');
           return [MaterialPageRoute(builder: (_) => const PreinscriptionPage())];
         }
         if (path == '/admin' || path == 'admin' || path == '/admin/') {
-          print('✅ [onGenerateInitialRoutes] Redirigiendo a Admin');
           return [
             MaterialPageRoute(
               builder: (_) => _isAdminAuthenticated() ? const AdminPage() : const AdminLoginPage(),
             )
           ];
         }
-        print('✅ [onGenerateInitialRoutes] Redirigiendo a HomePage (default)');
         return [MaterialPageRoute(builder: (_) => const HomePage())];
       },
       onUnknownRoute: (_) => MaterialPageRoute(builder: (_) => const HomePage()),
