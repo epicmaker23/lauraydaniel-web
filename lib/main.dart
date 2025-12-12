@@ -1,16 +1,16 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:html' as html;
-import 'dart:ui' as ui;
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:url_strategy/url_strategy.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:add_2_calendar/add_2_calendar.dart';
 
@@ -23,24 +23,9 @@ const _rsvpCollectionId = String.fromEnvironment('APPWRITE_RSVP_COLLECTION_ID', 
 const _galleryCollectionId = String.fromEnvironment('APPWRITE_GALLERY_COLLECTION_ID', defaultValue: '');
 const _appwriteStorageId = String.fromEnvironment('APPWRITE_STORAGE_ID', defaultValue: '');
 
-// Debug: imprimir configuración en consola (solo en desarrollo)
-void _debugAppwriteConfig() {
-  if (_appwriteEndpoint.isEmpty) {
-    print('⚠️ APPWRITE_ENDPOINT está vacío!');
-  } else {
-    print('✅ APPWRITE_ENDPOINT: $_appwriteEndpoint');
-  }
-  print('APPWRITE_PROJECT_ID: ${_appwriteProjectId.isEmpty ? "VACÍO" : "✓"}');
-  print('APPWRITE_DATABASE_ID: ${_appwriteDatabaseId.isEmpty ? "VACÍO" : "✓"}');
-  print('APPWRITE_RSVP_COLLECTION_ID: ${_rsvpCollectionId.isEmpty ? "VACÍO" : "✓"}');
-}
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Rutas sin hash: /formulario en lugar de /#/formulario
-  setUrlStrategy(PathUrlStrategy());
-  // Debug: mostrar configuración en consola
-  _debugAppwriteConfig();
+  setPathUrlStrategy();
   runApp(const BodaApp());
 }
 
@@ -194,6 +179,8 @@ class _HomeContent extends StatelessWidget {
                 _InfoCard(
                   icon: Icons.card_giftcard,
                   title: 'Regalos',
+                  subtitle: 'Vuestra presencia es nuestro mejor regalo',
+                  detail: 'Número de cuenta disponible',
                   onTap: () => _mostrarRegalos(context),
                 ),
                 _InfoCard(
@@ -276,7 +263,7 @@ class _HeroCard extends StatelessWidget {
                     border: Border.all(color: border, width: 4),
                   ),
                   padding: EdgeInsets.zero,
-                  alignment: Alignment.center,
+                        alignment: Alignment.center,
                   child: ClipOval(
                     clipBehavior: Clip.antiAlias,
                     child: _LogoWithTransparentBackground(
@@ -285,10 +272,10 @@ class _HeroCard extends StatelessWidget {
                       height: 172,
                       fallbackText: 'L&D',
                       textStyle: GoogleFonts.allura(
-                        fontSize: 90,
-                        color: border,
-                        fontWeight: FontWeight.w600,
-                        shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                            fontSize: 90,
+                            color: border,
+                            fontWeight: FontWeight.w600,
+                            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
                       ),
                     ),
                   ),
@@ -458,16 +445,16 @@ class _InfoCard extends StatelessWidget {
                         ),
                       ),
                       if (subtitle != null) ...[
-                        const SizedBox(height: 6),
+                      const SizedBox(height: 6),
                         Text(subtitle!, textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: subSize)),
                       ],
                       if (detail != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
+                      const SizedBox(height: 6),
+                      Text(
                           detail!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: detailSize),
-                        ),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: detailSize),
+                      ),
                       ],
                     ],
                   ),
@@ -533,34 +520,6 @@ Future<void> _abrirMapa(String direccion) async {
   await launchUrl(url, mode: LaunchMode.externalApplication);
 }
 
-void _dialogoSimple(BuildContext context, String titulo, String contenido) {
-  showDialog(
-    context: context,
-    builder: (_) => Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(titulo, style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
-              const SizedBox(height: 12),
-              Text(contenido),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 void _mostrarRecordatorios(BuildContext context) {
   showDialog(
     context: context,
@@ -573,9 +532,14 @@ void _mostrarRecordatorios(BuildContext context) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Recordatorios', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+              Row(
+                children: [
+                  const Text('📅 ', style: TextStyle(fontSize: 32)),
+                  Text('Recordatorios', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+                ],
+              ),
               const SizedBox(height: 12),
-              const Text('Añade recordatorios a tu calendario para no perderte nuestra boda. Puedes crear dos recordatorios:'),
+              const Text('Añade recordatorios a tu calendario para no perderte nuestra boda.\n\nPuedes crear dos recordatorios:'),
               const SizedBox(height: 16),
               // Recordatorio 1 semana antes
               _RecordatorioButton(
@@ -712,20 +676,146 @@ class _RecordatorioButton extends StatelessWidget {
 }
 
 void _mostrarTransporte(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Transporte',
-    'Servicio de autobús gratuito para invitados\n\n'
-    'Ponemos a disposición de nuestros invitados un servicio de autobús gratuito que facilitará el desplazamiento hasta la celebración.\n\n'
-    'RUTA:\n'
-    'Los autobuses realizarán la ruta Santander - Villasevil y viceversa.\n\n'
-    'PARADAS:\n'
-    'Se realizarán paradas tanto a la ida como a la vuelta en Puente Viesgo y Torrelavega para facilitar el acceso a todos los invitados.\n\n'
-    'HORARIOS:\n'
-    'Los horarios exactos se facilitarán más adelante en la web. No obstante, informamos que habrá dos horarios de vuelta disponibles:\n'
-    '• Primer horario: 21:30 horas\n'
-    '• Segundo horario: 00:30 horas\n\n'
-    'Os mantendremos informados de cualquier actualización a través de esta web.',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Text('🚌 ', style: TextStyle(fontSize: 32)),
+                    Text('Transporte', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Introducción
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🚌 ', style: TextStyle(fontSize: 20)),
+                    const Expanded(
+                      child: Text(
+                        'Servicio de autobús gratuito para invitados',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.only(left: 28),
+                  child: Text(
+                    'Ponemos a disposición de nuestros invitados un servicio de autobús gratuito que facilitará el desplazamiento hasta la celebración.',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Ruta
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🗺️ ', style: TextStyle(fontSize: 20)),
+                    const Expanded(
+                      child: Text(
+                        'RUTA:',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.only(left: 28),
+                  child: Text('Los autobuses realizarán la ruta Santander - Villasevil y viceversa.'),
+                ),
+                const SizedBox(height: 20),
+                // Paradas
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('📍 ', style: TextStyle(fontSize: 20)),
+                    const Expanded(
+                      child: Text(
+                        'PARADAS:',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Se realizarán paradas tanto a la ida como a la vuelta en Santander, Torrelavega y Puente Viesgo para facilitar el acceso a todos los invitados.'),
+                      const SizedBox(height: 8),
+                      const Text('Los puntos exactos de paradas en estas localidades se facilitarán más adelante en la web.'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Horarios
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('⏰ ', style: TextStyle(fontSize: 20)),
+                    const Expanded(
+                      child: Text(
+                        'HORARIOS:',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.only(left: 28),
+                  child: Text('Los horarios exactos se facilitarán más adelante en la web. No obstante, informamos que habrá dos horarios de vuelta disponibles:'),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(left: 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('  • Primer horario: 21:30 horas'),
+                      const SizedBox(height: 6),
+                      const Text('  • Segundo horario: 00:30 horas'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Actualizaciones
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('📢 ', style: TextStyle(fontSize: 20)),
+                    const Expanded(
+                      child: Text(
+                        'Os mantendremos informados de cualquier actualización a través de esta web.',
+                        style: TextStyle(fontStyle: FontStyle.italic),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -742,7 +832,12 @@ void _mostrarAlojamiento(BuildContext context) {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Row(
+                  children: [
+                    const Text('🏨 ', style: TextStyle(fontSize: 32)),
                 Text('Alojamiento', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _hotel('Gran Hotel Balneario de Puente Viesgo (4*)',
                     'Puente Viesgo (8 km de la ceremonia)',
@@ -782,13 +877,32 @@ Widget _hotel(String nombre, String ubicacion, String servicios, String url) {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(nombre, style: const TextStyle(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('📍 ', style: TextStyle(fontSize: 16)),
+          Expanded(child: Text('Ubicación: $ubicacion')),
+        ],
+      ),
       const SizedBox(height: 4),
-      Text('Ubicación: $ubicacion'),
-      Text('Servicios: $servicios'),
-      const SizedBox(height: 4),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('✨ ', style: TextStyle(fontSize: 16)),
+          Expanded(child: Text('Servicios: $servicios')),
+        ],
+      ),
+      const SizedBox(height: 6),
       InkWell(
         onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-        child: const Text('Abrir web', style: TextStyle(color: Colors.blue)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Text('🔗 ', style: TextStyle(fontSize: 14)),
+            Text('Abrir web', style: TextStyle(color: Colors.blue)),
+          ],
+        ),
       ),
     ],
   );
@@ -809,19 +923,42 @@ void _mostrarRegalos(BuildContext context) {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Regalos',
-                  style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37)),
+                Row(
+                  children: [
+                    const Text('🎁 ', style: TextStyle(fontSize: 32)),
+                    Text(
+                      'Regalos',
+                      style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37)),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
+                // Primer texto
                 const Text(
-                  'Vuestra presencia es nuestro mejor regalo, pero si queréis hacernos alguno y alguno lo necesita, os dejamos nuestro número de cuenta. Muchas gracias.',
+                  'Vuestra presencia es nuestro mejor regalo',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.only(left: 0),
+                  child: Text(
+                    'No tendremos lista de bodas. Lo más importante para nosotros es compartir este día especial con vosotros.',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Segundo texto
+                const Text(
+                  'Si queréis tener un detalle con nosotros',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.only(left: 0),
+                  child: Text(
+                    'Aquí os dejamos nuestro número de cuenta para que podáis hacernos un regalo si lo deseáis.',
+                  ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'No tendremos lista de bodas. Lo más importante para nosotros es compartir este día con vosotros. Si queréis tener un detalle, aquí os dejamos nuestro número de cuenta:',
-                ),
-                const SizedBox(height: 16),
                 GestureDetector(
                   onTap: () => mostrarCuenta.value = !mostrarCuenta.value,
                   child: Container(
@@ -855,6 +992,24 @@ void _mostrarRegalos(BuildContext context) {
                                   ),
                                 ),
                         ),
+                        if (cuentaVisible)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: IconButton(
+                              icon: const Icon(Icons.copy, size: 20),
+                              color: const Color(0xFFD4AF37),
+                              onPressed: () {
+                                html.window.navigator.clipboard?.writeText('ES61 0081 2714 1500 0827 1440');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('¡Número de cuenta copiado!'),
+                                    duration: Duration(seconds: 2),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         Icon(
                           cuentaVisible ? Icons.visibility_off : Icons.visibility,
                           color: Colors.grey.shade600,
@@ -866,8 +1021,8 @@ void _mostrarRegalos(BuildContext context) {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Mil gracias por acompañarnos.',
-                  style: TextStyle(fontStyle: FontStyle.italic),
+                  'Mil gracias por acompañarnos en este día tan especial.',
+                  style: TextStyle(fontStyle: FontStyle.italic, fontSize: 15),
                 ),
                 const SizedBox(height: 16),
                 Align(
@@ -901,38 +1056,117 @@ void _mostrarParking(BuildContext context) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Aparcamiento', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
-              const SizedBox(height: 12),
-              const Text('Para aquellos que vengan en coche. Se puede aparcar en los alrededores de la finca, en el pueblo. También hay un aparcamiento grande a 5 minutos andando de la finca, siguiendo la carretera nacional.'),
+              Row(
+                children: [
+                  const Text('🅿️ ', style: TextStyle(fontSize: 32)),
+                  Text('Aparcamiento', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+                ],
+              ),
               const SizedBox(height: 16),
-              InkWell(
-                onTap: () async {
-                  final url = Uri.parse('https://maps.app.goo.gl/JGaGz6RskTJeDiCy7');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD4AF37).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+              // Aparcamiento Ceremonia
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('⛪ ', style: TextStyle(fontSize: 20)),
+                  const Expanded(
+                    child: Text(
+                      'CEREMONIA:',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.map, color: Color(0xFFD4AF37), size: 20),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Ver ubicación del aparcamiento',
-                        style: TextStyle(
-                          color: Color(0xFFD4AF37),
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.only(left: 28),
+                child: Text('Aparcamiento disponible en los alrededores del Convento de San Francisco de El Soto.'),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 28),
+                child: InkWell(
+                  onTap: () async {
+                    final url = Uri.parse('https://maps.app.goo.gl/qxfQCxtks6mswXry7');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4AF37).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.map, color: Color(0xFFD4AF37), size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Ver ubicación del aparcamiento',
+                          style: TextStyle(
+                            color: Color(0xFFD4AF37),
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Aparcamiento Celebración
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('🎉 ', style: TextStyle(fontSize: 20)),
+                  const Expanded(
+                    child: Text(
+                      'CELEBRACIÓN:',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.only(left: 28),
+                child: Text('Se puede aparcar en los alrededores de la finca, en el pueblo. También hay un aparcamiento grande a 5 minutos andando de la finca, siguiendo la carretera nacional.'),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 28),
+                child: InkWell(
+                  onTap: () async {
+                    final url = Uri.parse('https://maps.app.goo.gl/JGaGz6RskTJeDiCy7');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4AF37).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.map, color: Color(0xFFD4AF37), size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Ver ubicación del aparcamiento',
+                          style: TextStyle(
+                            color: Color(0xFFD4AF37),
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -949,15 +1183,36 @@ void _mostrarParking(BuildContext context) {
   );
 }
 
-void _mostrarSubirFotos(BuildContext context) {
-  _uploadMediaWithAppwrite(context);
-}
-
 void _mostrarFotomaton(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Fotomatón',
-    'Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('📸 ', style: TextStyle(fontSize: 32)),
+                  Text('Fotomatón', style: GoogleFonts.allura(fontSize: 36, color: const Color(0xFFD4AF37))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text('Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.'),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -1023,6 +1278,10 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_attendance == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La confirmación de asistencia es obligatoria.')));
+      return;
+    }
     if (_attendance == 'si') {
       if (_companion == null || _needTransport == null || _ownCar == null || _albumDigital == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa los campos obligatorios.')));
@@ -1040,22 +1299,8 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
 
     setState(() => _sending = true);
     try {
-      // Debug: mostrar configuración actual
-      final debugInfo = 'Endpoint: $_appwriteEndpoint\nProject: $_appwriteProjectId\nDatabase: $_appwriteDatabaseId\nCollection: $_rsvpCollectionId';
-      print('🔍 Iniciando envío de confirmación...');
-      print('🔍 $debugInfo');
-      
       final payload = _buildRsvpPayload();
-      print('📋 Payload construido: ${payload.keys.toList()}');
-      
-      // Verificar que no estamos usando Supabase
-      if (_appwriteEndpoint.contains('supabase') || _appwriteEndpoint.contains('epicmaker.dev')) {
-        throw 'ERROR CRÍTICO: El endpoint configurado es de Supabase: $_appwriteEndpoint\n\nDebes recompilar con: --dart-define="APPWRITE_ENDPOINT=https://api.lauraydaniel.es/v1"';
-      }
-      
-      print('📤 Enviando a Appwrite...');
       await _sendRsvpToAppwrite(payload);
-      print('✅ Envío completado exitosamente');
       
       if (mounted) {
         // Limpiar formulario después de enviar exitosamente
@@ -1084,20 +1329,18 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
         );
       }
     } catch (e) {
-      print('❌ Error en _submit: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error enviando: $e'),
+          const SnackBar(
+            content: Text('Error al enviar la confirmación. Por favor, inténtalo de nuevo.'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 10),
+            duration: Duration(seconds: 5),
           ),
         );
       }
     } finally {
       if (mounted) {
         setState(() => _sending = false);
-        print('🏁 Estado _sending actualizado a false');
       }
     }
   }
@@ -1114,9 +1357,9 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
       for (final c in _companions) {
         // Solo contar acompañantes que van a asistir
         if (c.asistencia == 'si') {
-          if (c.age == 'adulto') countAdult++;
-          if (c.age == '12-18') countTeen++;
-          if (c.age == '0-12') countKid++;
+        if (c.age == 'adulto') countAdult++;
+        if (c.age == '12-18') countTeen++;
+        if (c.age == '0-12') countKid++;
         }
       }
     }
@@ -1134,10 +1377,10 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
       'num_adultos': countAdult,
       'num_12_18': countTeen,
       'num_0_12': countKid,
-      'necesita_transporte': _needTransport?.toUpperCase(),
-      'coche_propio': _ownCar?.toUpperCase(),
+      'necesita_transporte': (_needTransport ?? 'NO').toUpperCase(),
+      'coche_propio': (_ownCar ?? 'NO').toUpperCase(),
       'canciones': _songs.text.trim().isEmpty ? null : _songs.text.trim().toUpperCase(),
-      'album_digital': _albumDigital?.toUpperCase(),
+      'album_digital': (_albumDigital ?? 'NO').toUpperCase(),
       'mensaje_novios': _message.text.trim().isEmpty ? null : _message.text.trim().toUpperCase(),
       'created_at': DateTime.now().toIso8601String(),
       'origen_form': 'FLUTTER_WEB',
@@ -1185,31 +1428,6 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
       headers['X-Appwrite-Key'] = _appwriteApiKey;
     }
     
-    // Debug: Intentar obtener la estructura de la colección para verificar atributos
-    try {
-      String endpoint = _appwriteEndpoint.trim();
-      if (endpoint.endsWith('/')) {
-        endpoint = endpoint.substring(0, endpoint.length - 1);
-      }
-      if (!endpoint.endsWith('/v1')) {
-        endpoint = '$endpoint/v1';
-      }
-      
-      final collectionUri = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_rsvpCollectionId');
-      final collectionResp = await http.get(collectionUri, headers: headers);
-      
-      if (collectionResp.statusCode == 200) {
-        final collectionData = jsonDecode(collectionResp.body) as Map<String, dynamic>;
-        final attributes = collectionData['attributes'] as List<dynamic>?;
-        if (attributes != null) {
-          final attributeKeys = attributes.map((a) => (a as Map<String, dynamic>)['key'] as String).toList();
-          print('📋 Atributos reconocidos por Appwrite: $attributeKeys');
-        }
-      }
-    } catch (e) {
-      print('⚠️ No se pudo obtener estructura de colección: $e');
-    }
-    
     // Appwrite API: POST /v1/databases/{databaseId}/collections/{collectionId}/documents
     // El endpoint ya incluye /v1, así que solo añadimos la ruta
     // Asegurar que el endpoint termine con /v1 y no tenga barra final
@@ -1225,15 +1443,10 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     
     // Validar que la URL sea absoluta (debe empezar con http:// o https://)
     if (!urlString.startsWith('http://') && !urlString.startsWith('https://')) {
-      throw 'ERROR: URL no es absoluta. Las variables de entorno no se pasaron correctamente.\n\nURL construida: $urlString\n\nEndpoint: "$_appwriteEndpoint"\n\nDebes recompilar con: --dart-define="APPWRITE_ENDPOINT=https://api.lauraydaniel.es/v1"';
+      throw 'Error de configuración: URL inválida';
     }
     
     final uri = Uri.parse(urlString);
-    
-    // Debug: verificar URL antes de enviar
-    if (!uri.toString().contains('api.lauraydaniel.es')) {
-      throw 'ERROR: URL incorrecta. Debe contener api.lauraydaniel.es.\n\nURL actual: ${uri.toString()}\n\nEndpoint configurado: "$_appwriteEndpoint"\n\nRecompila con: --dart-define="APPWRITE_ENDPOINT=https://api.lauraydaniel.es/v1"';
-    }
     
     // Appwrite espera el payload con documentId y data
     // Limpiar y formatear el payload según los tipos esperados por Appwrite
@@ -1268,10 +1481,6 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
       'data': cleanPayload,
     };
     
-    // Debug: imprimir payload en consola
-    print('📤 Enviando a Appwrite: ${jsonEncode(appwritePayload)}');
-    print('📋 Headers: ${headers.toString()}');
-    
     final resp = await http.post(
       uri,
       headers: headers,
@@ -1279,15 +1488,17 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     );
     
     if (resp.statusCode >= 300) {
-      // Mostrar respuesta completa para debug
-      final errorBody = resp.body;
-      print('❌ Error de Appwrite (${resp.statusCode}): $errorBody');
-      print('📋 Request URL: ${uri.toString()}');
-      print('📋 Request Headers: ${headers.toString()}');
-      throw 'Error ${resp.statusCode}: ${errorBody.length > 200 ? errorBody.substring(0, 200) + "..." : errorBody}';
+      String errorMessage = 'Error al procesar la solicitud';
+      try {
+        final errorJson = jsonDecode(resp.body) as Map<String, dynamic>?;
+        if (errorJson != null && errorJson.containsKey('message')) {
+          errorMessage = errorJson['message'] as String;
+        }
+      } catch (e) {
+        // Si no se puede parsear, usar mensaje genérico
+      }
+      throw errorMessage;
     }
-    
-    print('✅ Documento creado exitosamente en Appwrite');
   }
 
   @override
@@ -1345,19 +1556,50 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                 _TextField(
                                   controller: _name,
                                   label: 'Nombre y apellidos',
-                                  validator: (v) => v!.trim().isEmpty ? 'Campo obligatorio' : null,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]')),
+                                  ],
+                                  validator: (v) {
+                                    if (v!.trim().isEmpty) {
+                                      return 'Campo obligatorio';
+                                    }
+                                    if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$').hasMatch(v.trim())) {
+                                      return 'Solo se permiten letras';
+                                    }
+                                    return null;
+                                  },
                                 ),
                                 _TextField(
                                   controller: _email,
                                   label: 'Correo electrónico',
                                   keyboardType: TextInputType.emailAddress,
-                                  validator: (v) => v!.trim().isEmpty || _isValidEmail(v.trim()) ? null : 'Email no válido',
+                                  validator: (v) {
+                                    if (v!.trim().isEmpty) {
+                                      return 'Campo obligatorio';
+                                    }
+                                    if (!_isValidEmail(v.trim())) {
+                                      return 'Email no válido';
+                                    }
+                                    return null;
+                                  },
                                 ),
                                 _TextField(
                                   controller: _phone,
                                   label: 'Teléfono',
                                   keyboardType: TextInputType.phone,
-                                  validator: (v) => v!.trim().isEmpty ? 'Campo obligatorio' : null,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(9),
+                                  ],
+                                  validator: (v) {
+                                    if (v!.trim().isEmpty) {
+                                      return 'Campo obligatorio';
+                                    }
+                                    if (v.trim().length != 9) {
+                                      return 'El teléfono debe tener 9 dígitos';
+                                    }
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -1502,8 +1744,8 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                     ),
                                   );
                                 },
+                                ),
                               ),
-                            ),
                             // Transporte
                             _Section(
                               title: 'Transporte',
@@ -1819,7 +2061,7 @@ class _EventDetailsSection extends StatelessWidget {
                               ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+              const SizedBox(height: 6),
                     SizedBox(
                       height: 18,
                       child: Center(
@@ -1872,13 +2114,11 @@ class _EventDetailsSection extends StatelessWidget {
           detailCard(
             iconData: Icons.church,
             title: 'Ceremonia',
-            imageAsset: 'assets/images/santuario.jpg',
             lines: const ['Convento de San Francisco de El Soto', 'Soto‑Iruz – 12:30h'],
           ),
           detailCard(
             iconData: Icons.celebration,
             title: 'Celebración',
-            imageAsset: 'assets/images/labranza.jpg',
             lines: const ['Finca La Real Labranza de Villasevil', '14:00h'],
           ),
           detailCard(
@@ -1937,12 +2177,14 @@ class _TextField extends StatelessWidget {
   final int maxLines;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
   const _TextField({
     required this.controller,
     required this.label,
     this.maxLines = 1,
     this.keyboardType,
     this.validator,
+    this.inputFormatters,
   });
   @override
   Widget build(BuildContext context) {
@@ -1952,6 +2194,7 @@ class _TextField extends StatelessWidget {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,
@@ -2166,21 +2409,21 @@ String _inferMime(String? ext) {
 
 Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) async {
   // Selección de archivos (fotos y videos)
-  final result = await FilePicker.platform.pickFiles(
-    allowMultiple: true,
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
     type: FileType.media, // Permite seleccionar fotos y videos
-    withData: true,
-  );
-  if (result == null || result.files.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No seleccionaste archivos.')));
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No seleccionaste archivos.')));
     return false;
   }
   if (_appwriteEndpoint.isEmpty || _appwriteProjectId.isEmpty || _appwriteStorageId.isEmpty || _appwriteDatabaseId.isEmpty || _galleryCollectionId.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backend no configurado. Faltan variables de Appwrite.')));
     return false;
-  }
+    }
 
-  final scaffold = ScaffoldMessenger.of(context);
+    final scaffold = ScaffoldMessenger.of(context);
   
   // Mostrar diálogo de progreso
   final uploadProgress = <String, double>{};
@@ -2307,11 +2550,11 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
       final file = result.files[i];
       final bytes = file.bytes;
       
-      if (bytes == null) {
+        if (bytes == null) {
         uploadStatus[file.name] = 'Error: No se pudo leer el archivo';
         failCount++;
-        continue;
-      }
+          continue;
+        }
 
       final fileSizeMB = bytes.length / (1024 * 1024);
       uploadProgress[file.name] = 0.0;
@@ -2325,9 +2568,6 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
       updateDialog?.call();
       
       final storageUrl = Uri.parse('$endpoint/storage/buckets/$_appwriteStorageId/files');
-      print('📤 Subiendo archivo ${i + 1}/${result.files.length}: ${file.name}');
-      print('📤 Tamaño: ${(bytes.length / (1024 * 1024)).toStringAsFixed(2)} MB');
-      
       final storageRequest = http.MultipartRequest('POST', storageUrl);
       
       // Headers requeridos
@@ -2337,13 +2577,12 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
       }
       
       final mime = _inferMime(file.extension);
-      print('📤 MIME type: $mime');
-      
-      // Agregar archivo
+      // Agregar archivo con Content-Type correcto
       final multipartFile = http.MultipartFile.fromBytes(
         'file',
-        bytes,
+              bytes,
         filename: file.name,
+        contentType: mime != null ? MediaType.parse(mime) : null,
       );
       storageRequest.files.add(multipartFile);
       
@@ -2354,7 +2593,6 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
       uploadStatus[file.name] = 'Enviando datos al servidor...';
       updateDialog?.call();
       
-      print('📤 Enviando request a Storage...');
       final startTime = DateTime.now();
       
       // Simular progreso durante la subida para archivos grandes
@@ -2372,29 +2610,27 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
       }
       
       try {
-        print('📤 Iniciando envío del archivo...');
         final sendStartTime = DateTime.now();
         
-        // Usar un timeout más corto y detectar si la conexión está activa
+        // Usar timeout más largo para videos grandes
+        final timeoutDuration = fileSizeMB > 50 
+            ? const Duration(minutes: 20)  // 20 minutos para archivos > 50MB
+            : const Duration(minutes: 10); // 10 minutos para archivos más pequeños
+        
+        // Usar un timeout y detectar si la conexión está activa
         final storageResponse = await storageRequest.send().timeout(
-          const Duration(minutes: 10), // Timeout de 10 minutos (más razonable)
+          timeoutDuration,
           onTimeout: () {
             progressTimer?.cancel();
-            final elapsed = DateTime.now().difference(sendStartTime).inSeconds;
-            print('⏱️ Timeout después de ${elapsed}s');
-            throw TimeoutException('La subida del archivo ${file.name} excedió el tiempo límite de 10 minutos. El archivo puede ser demasiado grande o la conexión es muy lenta.');
+            throw TimeoutException('La subida del archivo ${file.name} (${fileSizeMB.toStringAsFixed(1)} MB) excedió el tiempo límite. El archivo puede ser demasiado grande o la conexión es muy lenta.');
           },
         );
         
         progressTimer?.cancel();
-        final elapsed = DateTime.now().difference(sendStartTime).inSeconds;
-        print('✅ Respuesta recibida después de ${elapsed}s');
-        
         uploadProgress[file.name] = 0.8;
         uploadStatus[file.name] = 'Procesando respuesta...';
         updateDialog?.call();
       
-        print('📥 Leyendo respuesta del servidor...');
         final responseStartTime = DateTime.now();
         
         final storageResponseBody = await http.Response.fromStream(storageResponse).timeout(
@@ -2404,13 +2640,8 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
           },
         );
         
-        final responseElapsed = DateTime.now().difference(responseStartTime).inSeconds;
-        print('📥 Respuesta Storage: ${storageResponse.statusCode} (leída en ${responseElapsed}s)');
-        print('📥 Body: ${storageResponseBody.body.length > 500 ? storageResponseBody.body.substring(0, 500) + "..." : storageResponseBody.body}');
-        
         if (storageResponse.statusCode >= 300) {
           final errorMsg = 'Error ${storageResponse.statusCode}: ${storageResponseBody.body}';
-          print('❌ $errorMsg');
           
           String statusMsg = 'Error ${storageResponse.statusCode}';
           if (storageResponse.statusCode == 502) {
@@ -2429,15 +2660,12 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
         }
         
         final storageData = jsonDecode(storageResponseBody.body) as Map<String, dynamic>;
-        print('📥 Storage data: $storageData');
-        
         uploadProgress[file.name] = 0.9;
         updateDialog?.call();
         
         final fileId = storageData[r'$id'] as String? ?? storageData['id'] as String?;
         
         if (fileId == null) {
-          print('❌ No se encontró \$id en la respuesta: $storageData');
           uploadStatus[file.name] = 'Error: No se obtuvo ID del archivo';
           uploadProgress[file.name] = 0.0;
           failCount++;
@@ -2445,13 +2673,11 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
           continue;
         }
         
-        print('✅ Archivo subido correctamente. File ID: $fileId');
         uploadStatus[file.name] = 'Creando registro...';
         updateDialog?.call();
         
         // 2. Crear documento en la colección de galería con referencia al archivo
         final docUrl = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_galleryCollectionId/documents');
-        print('📤 Creando documento en: $docUrl');
         
         final docRequest = http.Request('POST', docUrl);
         
@@ -2471,22 +2697,15 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
         };
         
         docRequest.body = jsonEncode(docPayload);
-        print('📤 Payload documento: $docPayload');
         
         final docResponse = await docRequest.send();
         final docResponseBody = await http.Response.fromStream(docResponse);
         
-        print('📥 Respuesta Documento: ${docResponse.statusCode}');
-        print('📥 Body: ${docResponseBody.body}');
-        
         if (docResponse.statusCode >= 300) {
-          final errorMsg = 'Error ${docResponse.statusCode}: ${docResponseBody.body}';
-          print('❌ $errorMsg');
           uploadStatus[file.name] = 'Error creando registro';
           uploadProgress[file.name] = 0.0;
           failCount++;
         } else {
-          print('✅ Documento creado correctamente para ${file.name}');
           uploadStatus[file.name] = 'Completado ✓';
           uploadProgress[file.name] = 1.0;
           successCount++;
@@ -2495,8 +2714,6 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
         updateDialog?.call();
       } catch (e, stackTrace) {
         progressTimer?.cancel();
-        print('❌ Excepción subiendo ${file.name}: $e');
-        print('❌ Stack trace: $stackTrace');
         String errorMsg = e.toString();
         String userMsg = 'Error desconocido';
         
@@ -2538,7 +2755,6 @@ Future<bool> _uploadViaRest(BuildContext context, {VoidCallback? onComplete}) as
       
       // Ejecutar callback si se proporcionó (incluso si algunos fallaron, si hubo al menos un éxito)
       if (onComplete != null && successCount > 0) {
-        print('🔄 Ejecutando callback de actualización...');
         onComplete();
       }
     }
@@ -2554,7 +2770,7 @@ bool _isAdminAuthenticated() {
   try {
     final authKey = html.window.localStorage['admin_authenticated'];
     return authKey == 'true';
-  } catch (e) {
+      } catch (e) {
     return false;
   }
 }
@@ -2567,7 +2783,7 @@ void _setAdminAuthenticated(bool value) {
       html.window.localStorage.remove('admin_authenticated');
     }
   } catch (e) {
-    print('Error guardando autenticación: $e');
+    // Error silencioso al guardar autenticación
   }
 }
 
@@ -2589,7 +2805,7 @@ void _setGalleryAuthenticated(bool value) {
       html.window.localStorage.remove('gallery_authenticated');
     }
   } catch (e) {
-    print('Error guardando autenticación galería: $e');
+    // Error silencioso al guardar autenticación
   }
 }
 
@@ -2614,8 +2830,8 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       setState(() {
         _errorMessage = 'Por favor, completa todos los campos';
       });
-      return;
-    }
+    return;
+  }
 
     if (username == 'boda' && password == '25deabril') {
       setState(() {
@@ -2784,8 +3000,8 @@ class _GalleryLoginPageState extends State<GalleryLoginPage> {
       setState(() {
         _errorMessage = 'Por favor, completa todos los campos';
       });
-      return;
-    }
+    return;
+  }
 
     if (username == 'boda' && password == '25deabril') {
       setState(() {
@@ -2975,7 +3191,7 @@ class _GalleryPageState extends State<GalleryPage> {
       
       final response = await http.get(
         url,
-        headers: {
+      headers: {
           'X-Appwrite-Project': _appwriteProjectId,
           if (_appwriteApiKey.isNotEmpty) 'X-Appwrite-Key': _appwriteApiKey,
         },
@@ -2989,8 +3205,6 @@ class _GalleryPageState extends State<GalleryPage> {
         final existingFileIds = <String>{};
         try {
           final storageListUrl = Uri.parse('$endpoint/storage/buckets/$_appwriteStorageId/files');
-          print('🔍 Verificando archivos en storage: $storageListUrl');
-          
           final storageListResponse = await http.get(
             storageListUrl,
             headers: {
@@ -3009,12 +3223,9 @@ class _GalleryPageState extends State<GalleryPage> {
                 existingFileIds.add(id);
               }
             }
-            print('✅ Encontrados ${existingFileIds.length} archivos en storage');
-          } else {
-            print('⚠️ Error al listar archivos del storage: ${storageListResponse.statusCode}');
           }
         } catch (e) {
-          print('❌ Error al verificar archivos del storage: $e');
+          // Error silencioso al verificar archivos
         }
         
         // Solo agregar fotos cuyos archivos realmente existen en el storage
@@ -3032,9 +3243,6 @@ class _GalleryPageState extends State<GalleryPage> {
               'url': fileUrl,
               'uploaded_at': docData['uploaded_at'] as String? ?? '',
             });
-            print('✅ Agregando foto válida: $fileId');
-          } else if (fileId != null && fileId.isNotEmpty) {
-            print('⚠️ Documento con fileId $fileId pero el archivo no existe en storage');
           }
         }
         
@@ -3054,8 +3262,6 @@ class _GalleryPageState extends State<GalleryPage> {
             return dateB.compareTo(dateA);
           }
         });
-        
-        print('📸 Total de fotos válidas: ${photos.length}');
         
         setState(() {
           _photos = photos;
@@ -3090,6 +3296,92 @@ class _GalleryPageState extends State<GalleryPage> {
     );
   }
 
+  Future<void> _downloadPhoto(Map<String, dynamic> photo) async {
+    try {
+      final url = photo['url'] as String;
+      final fileId = photo['fileId'] as String;
+      final uploadedAt = photo['uploaded_at'] as String? ?? '';
+      
+      // Determinar extensión basada en la URL
+      String extension = 'jpg';
+      if (url.contains('.mp4') || url.contains('video')) {
+        extension = 'mp4';
+      } else if (url.contains('.mov')) {
+        extension = 'mov';
+      } else if (url.contains('.png')) {
+        extension = 'png';
+      } else if (url.contains('.jpeg') || url.contains('.jpg')) {
+        extension = 'jpg';
+      }
+      
+      // Crear nombre de archivo más descriptivo
+      String fileName = 'foto_$fileId.$extension';
+      if (uploadedAt.isNotEmpty) {
+        try {
+          final date = DateTime.parse(uploadedAt);
+          final dateStr = '${date.year}${date.month.toString().padLeft(2, '0')}${date.day.toString().padLeft(2, '0')}_${date.hour.toString().padLeft(2, '0')}${date.minute.toString().padLeft(2, '0')}';
+          fileName = 'foto_${dateStr}_$fileId.$extension';
+        } catch (e) {
+          // Si falla el parseo, usar el nombre por defecto
+        }
+      }
+      
+      // Crear un elemento anchor para descargar el archivo
+      final anchor = html.AnchorElement(href: url);
+      anchor.download = fileName;
+      anchor.target = '_blank';
+      html.document.body?.append(anchor);
+      anchor.click();
+      // Eliminar el elemento después de un breve delay
+      Future.delayed(const Duration(milliseconds: 100), () {
+        anchor.remove();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al descargar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadAllPhotos() async {
+    if (_photos.isEmpty) return;
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Iniciando descarga de ${_photos.length} archivo(s)...'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+    
+    // Descargar cada foto con un pequeño delay para evitar bloqueos del navegador
+    int downloaded = 0;
+    for (int i = 0; i < _photos.length; i++) {
+      await _downloadPhoto(_photos[i]);
+      downloaded++;
+      // Esperar un poco entre descargas para evitar problemas
+      if (i < _photos.length - 1) {
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
+    }
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Descarga completada: $downloaded archivo(s)'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -3104,10 +3396,26 @@ class _GalleryPageState extends State<GalleryPage> {
           ),
         ),
         actions: [
+          // Botón de descargar todas las fotos - siempre visible cuando hay fotos
+          if (_photos.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: ElevatedButton.icon(
+                onPressed: _downloadAllPhotos,
+                icon: const Icon(Icons.download, size: 20),
+                label: const Text('Descargar todas'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.upload),
             tooltip: 'Subir archivos',
             onPressed: _uploadNewFiles,
+            color: const Color(0xFFD4AF37),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -3118,9 +3426,19 @@ class _GalleryPageState extends State<GalleryPage> {
                 MaterialPageRoute(builder: (_) => const HomePage()),
               );
             },
+            color: const Color(0xFFD4AF37),
           ),
         ],
       ),
+      floatingActionButton: _photos.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _downloadAllPhotos,
+              backgroundColor: const Color(0xFFD4AF37),
+              foregroundColor: Colors.black,
+              icon: const Icon(Icons.download),
+              label: const Text('Descargar todo'),
+            )
+          : null,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
           : _errorMessage != null
@@ -3174,100 +3492,157 @@ class _GalleryPageState extends State<GalleryPage> {
                           final isVideo = photo['url'].toString().contains('.mp4') || 
                                          photo['url'].toString().contains('.mov') ||
                                          photo['url'].toString().contains('video');
-                          return GestureDetector(
-                            onTap: () {
-                              // Mostrar imagen/video en pantalla completa usando HTML
-                              showDialog(
-                                context: context,
-                                builder: (context) => Dialog(
-                                  backgroundColor: Colors.transparent,
-                                  insetPadding: const EdgeInsets.all(16),
-                                  child: Stack(
-                                    children: [
-                                      Center(
-                                        child: isVideo
-                                            ? SizedBox(
-                                                width: MediaQuery.of(context).size.width * 0.9,
-                                                height: MediaQuery.of(context).size.height * 0.8,
-                                                child: Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    const Icon(Icons.videocam, size: 64, color: Colors.white),
-                                                    const SizedBox(height: 16),
-                                                    const Text(
-                                                      'Video',
-                                                      style: TextStyle(color: Colors.white, fontSize: 18),
+                          void openViewer() {
+                            showDialog(
+                              context: context,
+                              builder: (context) => Dialog(
+                                backgroundColor: Colors.transparent,
+                                insetPadding: const EdgeInsets.all(16),
+                                child: Stack(
+                                  children: [
+                                    Center(
+                                      child: isVideo
+                                          ? SizedBox(
+                                              width: MediaQuery.of(context).size.width * 0.9,
+                                              height: MediaQuery.of(context).size.height * 0.8,
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(Icons.videocam, size: 64, color: Colors.white),
+                                                  const SizedBox(height: 16),
+                                                  const Text(
+                                                    'Video',
+                                                    style: TextStyle(color: Colors.white, fontSize: 18),
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  ElevatedButton.icon(
+                                                    onPressed: () {
+                                                      html.window.open(photo['url'] as String, '_blank');
+                                                    },
+                                                    icon: const Icon(Icons.play_arrow),
+                                                    label: const Text('Reproducir video'),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: const Color(0xFFD4AF37),
+                                                      foregroundColor: Colors.black,
                                                     ),
-                                                    const SizedBox(height: 16),
-                                                    ElevatedButton.icon(
-                                                      onPressed: () {
-                                                        html.window.open(photo['url'] as String, '_blank');
-                                                      },
-                                                      icon: const Icon(Icons.play_arrow),
-                                                      label: const Text('Reproducir video'),
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: const Color(0xFFD4AF37),
-                                                        foregroundColor: Colors.black,
-                                                      ),
-                                                    ),
-                                                  ],
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          : InteractiveViewer(
+                                              child: Image.network(
+                                                photo['url'] as String,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, __, ___) => const Icon(Icons.error, color: Colors.red, size: 48),
+                                              ),
+                                            ),
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () => _downloadPhoto(photo),
+                                              borderRadius: BorderRadius.circular(25),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withOpacity(0.8),
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: const Color(0xFFD4AF37),
+                                                    width: 2,
+                                                  ),
                                                 ),
-                                              )
-                                            : InteractiveViewer(
-                                                child: Image.network(
-                                                  photo['url'] as String,
-                                                  fit: BoxFit.contain,
-                                                  errorBuilder: (_, __, ___) => const Icon(Icons.error, color: Colors.red, size: 48),
+                                                child: const Icon(
+                                                  Icons.download,
+                                                  color: Color(0xFFD4AF37),
+                                                  size: 28,
                                                 ),
                                               ),
-                                      ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                                          onPressed: () => Navigator.pop(context),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: isVideo
-                                    ? Stack(
-                                        fit: StackFit.expand,
-                                        children: [
-                                          Image.network(
-                                            photo['url'] as String,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Container(
-                                              color: Colors.grey[800],
-                                              child: const Icon(Icons.videocam, color: Colors.grey),
                                             ),
                                           ),
-                                          const Center(
-                                            child: Icon(Icons.play_circle_filled, color: Colors.white, size: 48),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                                            onPressed: () => Navigator.pop(context),
                                           ),
                                         ],
-                                      )
-                                    : Image.network(
-                                        photo['url'] as String,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: Colors.grey[800],
-                                          child: const Icon(Icons.image, color: Colors.grey),
-                                        ),
                                       ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
+                            );
+                          }
+
+                          return Stack(
+                            children: [
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: openViewer,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: isVideo
+                                          ? Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                Image.network(
+                                                  photo['url'] as String,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) => Container(
+                                                    color: Colors.grey[800],
+                                                    child: const Icon(Icons.videocam, color: Colors.grey),
+                                                  ),
+                                                ),
+                                                const Center(
+                                                  child: Icon(Icons.play_circle_filled, color: Colors.white, size: 48),
+                                                ),
+                                              ],
+                                            )
+                                          : Image.network(
+                                              photo['url'] as String,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Container(
+                                                color: Colors.grey[800],
+                                                child: const Icon(Icons.image, color: Colors.grey),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: Material(
+                                  color: Colors.black.withOpacity(0.85),
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () => _downloadPhoto(photo),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: const Icon(
+                                        Icons.download,
+                                        color: Color(0xFFD4AF37),
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
@@ -3311,10 +3686,13 @@ class _UploadPageState extends State<UploadPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo o título
-                  Text(
-                    'L&D',
-                    style: GoogleFonts.allura(
+                  // Logo dorado
+                  _LogoWithTransparentBackground(
+                    imagePath: 'assets/images/logoNuevo.png',
+                    width: 172,
+                    height: 172,
+                    fallbackText: 'L&D',
+                    textStyle: GoogleFonts.allura(
                       fontSize: 64,
                       color: const Color(0xFFD4AF37),
                       fontWeight: FontWeight.w600,
@@ -3491,32 +3869,20 @@ class _AdminPageState extends State<AdminPage> {
       }
 
       final url = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_rsvpCollectionId/documents');
-      print('📡 Cargando RSVPs desde: $url');
       final resp = await http.get(url, headers: headers);
 
-      print('📥 Respuesta status: ${resp.statusCode}');
-      print('📥 Respuesta body: ${resp.body.substring(0, resp.body.length > 500 ? 500 : resp.body.length)}');
-
       if (resp.statusCode >= 300) {
-        throw 'Error ${resp.statusCode}: ${resp.body}';
+        throw 'Error al cargar datos';
       }
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      print('📋 Estructura de respuesta: ${data.keys.toList()}');
-      
       final documents = data['documents'] as List<dynamic>? ?? [];
-      print('📋 Documentos encontrados: ${documents.length}');
-
-      if (documents.isNotEmpty) {
-        print('📋 Primer documento: ${documents[0]}');
-      }
 
       final List<Map<String, dynamic>> loadedRsvps = [];
       final Map<String, String> loadedIds = {};
       
       for (int i = 0; i < documents.length; i++) {
         final doc = documents[i] as Map<String, dynamic>;
-        print('📄 Documento completo: $doc');
         
         // Guardar el ID del documento
         final docId = doc[r'$id'] as String? ?? doc['id'] as String? ?? '';
@@ -3549,11 +3915,10 @@ class _AdminPageState extends State<AdminPage> {
               docData['acompanantes_json'] = jsonDecode(docData['acompanantes_json'] as String);
             }
           } catch (e) {
-            print('⚠️ Error parseando acompañantes_json: $e');
+            // Error silencioso al parsear acompañantes
           }
         }
         
-        print('📄 Datos extraídos: $docData');
         loadedRsvps.add(docData ?? <String, dynamic>{});
       }
       
@@ -3562,11 +3927,6 @@ class _AdminPageState extends State<AdminPage> {
         _documentIds = loadedIds;
         _loading = false;
       });
-      
-      print('✅ Cargados ${_rsvps.length} RSVPs');
-      if (_rsvps.isNotEmpty) {
-        print('📋 Primer RSVP: ${_rsvps[0]}');
-      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -3623,8 +3983,6 @@ class _AdminPageState extends State<AdminPage> {
       }
 
       final url = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_rsvpCollectionId/documents/$documentId');
-      print('🗑️ Eliminando documento: $url');
-      
       final resp = await http.delete(url, headers: headers);
 
       if (resp.statusCode >= 300) {
@@ -3681,7 +4039,7 @@ class _AdminPageState extends State<AdminPage> {
         }
       }
     } catch (e) {
-      print('⚠️ Error parseando acompañantes: $e');
+      // Error silencioso al parsear acompañantes
     }
 
     // Crear controladores para cada acompañante
@@ -3697,16 +4055,29 @@ class _AdminPageState extends State<AdminPage> {
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Editar RSVP'),
-          content: SingleChildScrollView(
-            child: SizedBox(
-              width: 500,
+        builder: (context, setDialogState) => Dialog(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 800),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Text(
+                    'Editar RSVP',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 500),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                   TextField(
                     controller: nameController,
                     decoration: const InputDecoration(labelText: 'Nombre *'),
@@ -3797,34 +4168,39 @@ class _AdminPageState extends State<AdminPage> {
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const Text('Acompañantes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          DropdownButtonFormField<String>(
-                            value: acompanante,
-                            decoration: const InputDecoration(
-                              labelText: 'Tiene acompañantes',
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              isDense: true,
+                          SizedBox(
+                            width: 200,
+                            child: DropdownButtonFormField<String>(
+                              value: acompanante,
+                              decoration: const InputDecoration(
+                                labelText: 'Tiene acompañantes',
+                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                isDense: true,
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'si', child: Text('Sí')),
+                                DropdownMenuItem(value: 'no', child: Text('No')),
+                              ],
+                              onChanged: (value) => setDialogState(() {
+                                acompanante = value;
+                                if (value == 'no') {
+                                  acompanantesControllers.clear();
+                                } else if (acompanantesControllers.isEmpty) {
+                                  acompanantesControllers.add({
+                                    'nombre': TextEditingController(),
+                                    'edad': 'adulto',
+                                    'asistencia': 'si',
+                                    'alergias': TextEditingController(),
+                                  });
+                                }
+                              }),
                             ),
-                            items: const [
-                              DropdownMenuItem(value: 'si', child: Text('Sí')),
-                              DropdownMenuItem(value: 'no', child: Text('No')),
-                            ],
-                            onChanged: (value) => setDialogState(() {
-                              acompanante = value;
-                              if (value == 'no') {
-                                acompanantesControllers.clear();
-                              } else if (acompanantesControllers.isEmpty) {
-                                acompanantesControllers.add({
-                                  'nombre': TextEditingController(),
-                                  'edad': 'adulto',
-                                  'asistencia': 'si',
-                                  'alergias': TextEditingController(),
-                                });
-                              }
-                            }),
                           ),
                           if (acompanante == 'si')
                             IconButton(
@@ -3915,25 +4291,29 @@ class _AdminPageState extends State<AdminPage> {
                       );
                     }).toList(),
                   ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                nameController.dispose();
-                emailController.dispose();
-                phoneController.dispose();
-                alergiasController.dispose();
-                cancionesController.dispose();
-                mensajeController.dispose();
-                Navigator.pop(context);
-              },
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () async {
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          nameController.dispose();
+                          emailController.dispose();
+                          phoneController.dispose();
+                          alergiasController.dispose();
+                          cancionesController.dispose();
+                          mensajeController.dispose();
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () async {
                 if (nameController.text.trim().isEmpty ||
                     emailController.text.trim().isEmpty ||
                     phoneController.text.trim().isEmpty) {
@@ -4032,10 +4412,15 @@ class _AdminPageState extends State<AdminPage> {
 
                 Navigator.pop(context);
                 await _updateRsvp(context, documentId, updatedData);
-              },
-              child: const Text('Guardar'),
+                        },
+                        child: const Text('Guardar'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -4052,7 +4437,7 @@ class _AdminPageState extends State<AdminPage> {
       }
 
       final headers = <String, String>{
-        'Content-Type': 'application/json',
+          'Content-Type': 'application/json',
         'X-Appwrite-Project': _appwriteProjectId,
       };
 
@@ -4061,9 +4446,7 @@ class _AdminPageState extends State<AdminPage> {
       }
 
       final url = Uri.parse('$endpoint/databases/$_appwriteDatabaseId/collections/$_rsvpCollectionId/documents/$documentId');
-      print('✏️ Actualizando documento: $url');
-      print('📋 Datos: $data');
-
+      
       // Limpiar y formatear el payload igual que en _sendRsvpToAppwrite
       final cleanPayload = <String, dynamic>{};
       data.forEach((key, value) {
@@ -4113,18 +4496,6 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-  String _formatAgeRange(String? edad) {
-    if (edad == null || edad.isEmpty) return '';
-    final edadUpper = edad.toUpperCase().trim();
-    if (edadUpper == 'ADULTO' || edadUpper.contains('ADULTO')) {
-      return '18+ años';
-    } else if (edadUpper == '12-18' || edadUpper.contains('12-18')) {
-      return '12-18 años';
-    } else if (edadUpper == '0-12' || edadUpper.contains('0-12')) {
-      return '0-12 años';
-    }
-    return edad; // Si no coincide, devolver el valor original
-  }
 
   String _getCompanionsNames(List<dynamic> acompanantes) {
     if (acompanantes.isEmpty) return '';
@@ -4136,6 +4507,21 @@ class _AdminPageState extends State<AdminPage> {
         return '';
       }).where((name) => name.isNotEmpty).toList();
       return names.join(', ');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String _getCompanionsAsistencia(List<dynamic> acompanantes) {
+    if (acompanantes.isEmpty) return '';
+    try {
+      final asistencias = acompanantes.map((comp) {
+        if (comp is Map<String, dynamic>) {
+          return comp['asistencia']?.toString().toUpperCase() ?? 'SI';
+        }
+        return 'SI';
+      }).toList();
+      return asistencias.join(', ');
     } catch (e) {
       return '';
     }
@@ -4153,20 +4539,19 @@ class _AdminPageState extends State<AdminPage> {
         'Email',
         'Teléfono',
         'Asistencia',
-        'Rango de Edad',
+        'Asistencia Acompañantes',
         'Alergias',
+        'Necesita Transporte',
+        'Coche Propio',
+        'Álbum Digital',
         'Tipo',
         'Nº Acompañantes',
         'Nº Adultos',
         'Nº 12-18 años',
         'Nº Menores 12',
-        'Necesita Transporte',
-        'Coche Propio',
         'Canciones',
-        'Álbum Digital',
-        'Mensaje Novios',
         'Nombre Acompañante',
-        'Asistencia Acompañante',
+        'Mensaje Novios',
         'Fecha Creación',
         'Origen',
       ];
@@ -4195,7 +4580,7 @@ class _AdminPageState extends State<AdminPage> {
             }
           }
         } catch (e) {
-          print('⚠️ Error parseando acompañantes en Excel: $e');
+          // Error silencioso al parsear acompañantes
         }
         
         // Si no hay acompañantes, escribir solo la fila del invitado principal
@@ -4205,20 +4590,19 @@ class _AdminPageState extends State<AdminPage> {
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['email']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['phone']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['asistencia']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_formatAgeRange(rsvp['edad_principal']?.toString()));
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Asistencia Acompañantes vacío si no hay
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['alergias_principal']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['album_digital']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('INVITADO PRINCIPAL');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_acompanantes'] ?? 0);
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_adultos'] ?? 0);
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_12_18'] ?? 0);
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_0_12'] ?? 0);
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['canciones']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['album_digital']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['mensaje_novios']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Nombre Acompañante vacío si no hay
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Asistencia Acompañante vacío si no hay
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['mensaje_novios']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? '');
           currentRow++;
@@ -4229,20 +4613,19 @@ class _AdminPageState extends State<AdminPage> {
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['email']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['phone']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['asistencia']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_formatAgeRange(rsvp['edad_principal']?.toString()));
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_getCompanionsAsistencia(acompanantes)); // Asistencia Acompañantes
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['alergias_principal']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['album_digital']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('INVITADO PRINCIPAL');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_acompanantes'] ?? 0);
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_adultos'] ?? 0);
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_12_18'] ?? 0);
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(rsvp['num_0_12'] ?? 0);
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['canciones']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['album_digital']?.toString() ?? '');
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_getCompanionsNames(acompanantes)); // Nombre Acompañante
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['mensaje_novios']?.toString() ?? '');
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_getCompanionsNames(acompanantes)); // Nombres de acompañantes
-          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Asistencia Acompañante vacío para invitado principal
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? '');
           sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? '');
           currentRow++;
@@ -4254,21 +4637,20 @@ class _AdminPageState extends State<AdminPage> {
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['nombre']?.toString() ?? '');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['email']?.toString() ?? ''); // Mismo email del principal
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['phone']?.toString() ?? ''); // Mismo teléfono del principal
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['asistencia']?.toString() ?? 'SI'); // Asistencia del acompañante (columna Asistencia)
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(_formatAgeRange(compMap['edad']?.toString()));
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['asistencia']?.toString() ?? 'SI'); // Asistencia del acompañante
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['asistencia']?.toString() ?? 'SI'); // Asistencia Acompañantes
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['alergias']?.toString() ?? '');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Álbum Digital
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue('ACOMPAÑANTE');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(0);
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(0);
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(0);
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = IntCellValue(0);
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['necesita_transporte']?.toString() ?? '');
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['coche_propio']?.toString() ?? '');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Canciones
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Álbum Digital
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Mensaje Novios
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Nombre Acompañante vacío para fila de acompañante
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(compMap['asistencia']?.toString() ?? 'SI'); // Asistencia Acompañante (columna específica)
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(''); // Mensaje Novios
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['created_at']?.toString() ?? ''); // Fecha Creación
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: col++, rowIndex: currentRow)).value = TextCellValue(rsvp['origen_form']?.toString() ?? ''); // Origen
             currentRow++;
@@ -4388,9 +4770,6 @@ class _AdminPageState extends State<AdminPage> {
                         
                         final documentId = _documentIds[index.toString()] ?? '';
                         final asistenciaValue = rsvp['asistencia']?.toString() ?? '';
-                        // Debug: ver qué valor tiene asistencia
-                        print('📋 RSVP ${rsvp['name']}: asistencia = "$asistenciaValue"');
-                        
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           child: ListTile(
@@ -4560,9 +4939,6 @@ class _AdminPageState extends State<AdminPage> {
     // Limpiar el valor: quitar espacios, convertir a minúsculas y normalizar
     final asistenciaClean = asistencia.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '');
     
-    // Debug: imprimir el valor para ver qué llega
-    print('🔍 Valor de asistencia: "$asistencia" -> limpio: "$asistenciaClean"');
-    
     // Verificar si contiene "si" o "sí" (puede estar en mayúsculas o con acentos)
     if (asistenciaClean == 'si' || 
         asistenciaClean == 'sí' || 
@@ -4587,7 +4963,6 @@ class _AdminPageState extends State<AdminPage> {
     }
     
     // Si no coincide con ninguno, mostrar icono gris
-    print('⚠️ Valor de asistencia no reconocido: "$asistencia"');
     return const Icon(Icons.help_outline, color: Colors.grey, size: 24);
   }
 }

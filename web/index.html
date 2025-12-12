@@ -18,7 +18,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Boda de Laura & Daniel - 25 de Abril de 2026">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -26,16 +26,49 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="lauraydaniel_web">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="Laura & Daniel">
+  <link rel="apple-touch-icon" href="favicon.png">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <!-- Favicon - múltiples tamaños para mejor calidad -->
+  <link rel="icon" type="image/png" sizes="256x256" href="favicon.png?v=8"/>
+  <link rel="icon" type="image/png" sizes="128x128" href="favicon.png?v=8"/>
+  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png?v=8"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=8"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon.png?v=8"/>
+  <link rel="shortcut icon" type="image/png" href="favicon.png?v=8"/>
+  <link rel="apple-touch-icon" sizes="256x256" href="favicon.png?v=8"/>
+  <link rel="apple-touch-icon" sizes="128x128" href="favicon.png?v=8"/>
 
-  <title>lauraydaniel_web</title>
+  <title>Laura & Daniel - Boda 2026</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!--
+    IMPORTANTE (despliegues):
+    - Flutter Web en release registra un Service Worker que puede dejar cacheada una versión antigua (PWA).
+    - Este bloque fuerza la desinstalación del SW y el borrado de cachés para que siempre cargues el último build.
+    - Además, añadimos un querystring al bootstrap para evitar cachés agresivas del servidor/CDN.
+  -->
+  <script>
+    (async () => {
+      try {
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) {
+            await reg.unregister();
+          }
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch (_) {
+        // Ignorar: no queremos bloquear el arranque por un fallo al limpiar caché/SW
+      }
+    })();
+  </script>
+
+  <!-- Bump manual si el servidor cachea agresivamente (ej. ?v=9 -> ?v=10) -->
+  <script src="flutter_bootstrap.js?v=10" async></script>
 </body>
 </html>
