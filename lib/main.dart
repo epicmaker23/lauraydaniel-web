@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -545,12 +546,357 @@ void _mostrarRecordatorios(BuildContext context) {
   );
 }
 
-void _mostrarTransporte(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Transporte',
-    'Servicio de Autobús Gratuito para invitados.\n\nIda:\n• 11:00h – Santander Estación Marítima (Ferry)\n• 11:20h – Torrelavega Estación de Autobuses\n\nVuelta:\n• 01:00h – Salida desde la finca\n\nHorarios orientativos, se confirmarán más adelante.',
+Widget _BusIcon({double size = 32}) {
+  return SizedBox(
+    width: size,
+    height: size,
+    child: CustomPaint(
+      painter: _BusPainter(),
+    ),
   );
+}
+
+class _BusPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final strokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.grey.shade400;
+
+    // Cuerpo del autobús (teal/azul claro)
+    paint.color = const Color(0xFF4ECDC4);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.1, size.height * 0.2, size.width * 0.8, size.height * 0.6),
+        const Radius.circular(4),
+      ),
+      paint,
+    );
+
+    // Ventanas (azul claro)
+    paint.color = const Color(0xFF87CEEB);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.2, size.height * 0.3, size.width * 0.25, size.height * 0.2),
+        const Radius.circular(2),
+      ),
+      paint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.55, size.height * 0.3, size.width * 0.25, size.height * 0.2),
+        const Radius.circular(2),
+      ),
+      paint,
+    );
+
+    // Ruedas (gris)
+    paint.color = Colors.grey.shade600;
+    canvas.drawCircle(Offset(size.width * 0.25, size.height * 0.85), size.height * 0.1, paint);
+    canvas.drawCircle(Offset(size.width * 0.75, size.height * 0.85), size.height * 0.1, paint);
+
+    // Detalle naranja en el frente
+    paint.color = Colors.orange.shade400;
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.25, size.width * 0.15, size.height * 0.1),
+      paint,
+    );
+
+    // Detalle rojo en la parte trasera
+    paint.color = Colors.red.shade400;
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.75, size.height * 0.25, size.width * 0.15, size.height * 0.1),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+Widget _MegaphoneIcon({double size = 20}) {
+  return SizedBox(
+    width: size,
+    height: size,
+    child: CustomPaint(
+      painter: _MegaphonePainter(),
+    ),
+  );
+}
+
+class _MegaphonePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Mango blanco
+    paint.color = Colors.white;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.1, size.height * 0.4, size.width * 0.15, size.height * 0.3),
+        const Radius.circular(2),
+      ),
+      paint,
+    );
+
+    // Cuerpo rojo del megáfono
+    paint.color = Colors.red.shade600;
+    final path = Path();
+    path.moveTo(size.width * 0.25, size.height * 0.3);
+    path.lineTo(size.width * 0.9, size.height * 0.1);
+    path.lineTo(size.width * 0.9, size.height * 0.9);
+    path.lineTo(size.width * 0.25, size.height * 0.7);
+    path.close();
+    canvas.drawPath(path, paint);
+
+    // Cono blanco exterior
+    paint.color = Colors.white;
+    final conePath = Path();
+    conePath.moveTo(size.width * 0.3, size.height * 0.35);
+    conePath.lineTo(size.width * 0.85, size.height * 0.15);
+    conePath.lineTo(size.width * 0.85, size.height * 0.85);
+    conePath.lineTo(size.width * 0.3, size.height * 0.65);
+    conePath.close();
+    canvas.drawPath(conePath, paint);
+
+    // Altavoz azul vibrante (interior del cono)
+    paint.color = const Color(0xFF1E90FF);
+    final speakerPath = Path();
+    speakerPath.moveTo(size.width * 0.35, size.height * 0.4);
+    speakerPath.lineTo(size.width * 0.8, size.height * 0.2);
+    speakerPath.lineTo(size.width * 0.8, size.height * 0.8);
+    speakerPath.lineTo(size.width * 0.35, size.height * 0.6);
+    speakerPath.close();
+    canvas.drawPath(speakerPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+void _mostrarTransporte(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.directions_bus, color: Colors.blue.shade300, size: 32),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Transporte',
+                      style: GoogleFonts.allura(
+                        fontSize: 36,
+                        color: const Color(0xFFD4AF37),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _seccionTransporte(
+                  icon: Icons.airport_shuttle,
+                  iconColor: Colors.green.shade400,
+                  titulo: 'SERVICIO DE AUTOBÚS GRATUITO PARA INVITADOS',
+                  contenido: 'Ponemos a disposición de nuestros invitados un servicio de autobús gratuito que facilitará el desplazamiento hasta la celebración.',
+                ),
+                const SizedBox(height: 20),
+                _seccionTransporte(
+                  icon: Icons.route,
+                  iconColor: Colors.blue.shade300,
+                  titulo: 'RUTA:',
+                  contenido: 'Los autobuses realizarán la ruta Santander - Villasevil y viceversa.',
+                ),
+                const SizedBox(height: 20),
+                _seccionTransporte(
+                  icon: Icons.location_on,
+                  iconColor: Colors.red,
+                  titulo: 'PARADAS:',
+                  contenido: 'Se realizarán paradas tanto a la ida como a la vuelta en Santander, Torrelavega y Puente Viesgo para facilitar el acceso a todos los invitados.\n\nLos puntos exactos de paradas en estas localidades se facilitarán más adelante en la web.',
+                ),
+                const SizedBox(height: 20),
+                _seccionTransporte(
+                  icon: Icons.access_time,
+                  iconColor: Colors.red,
+                  titulo: 'HORARIOS:',
+                  contenido: 'Los horarios exactos se facilitarán más adelante en la web. No obstante, informamos que habrá dos horarios de vuelta disponibles:\n\n• Primer horario: 21:30 horas\n• Segundo horario: 00:30 horas',
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(Icons.campaign, color: const Color(0xFFD4AF37), size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Os mantendremos informados de cualquier actualización a través de esta web.',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cerrar',
+                      style: TextStyle(color: const Color(0xFFD4AF37)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _seccionTransporte({
+  required IconData icon,
+  required Color iconColor,
+  required String titulo,
+  required String contenido,
+}) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, color: iconColor, size: 24),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              titulo,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              contenido,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _HotelIcon({double size = 32}) {
+  return SizedBox(
+    width: size,
+    height: size,
+    child: CustomPaint(
+      painter: _HotelPainter(),
+    ),
+  );
+}
+
+class _HotelPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Base del edificio (marrón claro)
+    paint.color = const Color(0xFFD2B48C);
+    final baseRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.2, size.width * 0.8, size.height * 0.65),
+      const Radius.circular(2),
+    );
+    canvas.drawRRect(baseRect, paint);
+
+    // Techo curvo
+    paint.color = const Color(0xFFD2B48C);
+    final roofPath = Path();
+    roofPath.moveTo(size.width * 0.1, size.height * 0.2);
+    roofPath.quadraticBezierTo(
+      size.width * 0.5,
+      size.height * 0.05,
+      size.width * 0.9,
+      size.height * 0.2,
+    );
+    roofPath.lineTo(size.width * 0.9, size.height * 0.25);
+    roofPath.lineTo(size.width * 0.1, size.height * 0.25);
+    roofPath.close();
+    canvas.drawPath(roofPath, paint);
+
+    // Letra "H" grande en marrón oscuro
+    paint.color = const Color(0xFF8B4513);
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'H',
+        style: TextStyle(
+          color: Color(0xFF8B4513),
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(size.width * 0.5 - textPainter.width / 2, size.height * 0.35),
+    );
+
+    // Banda roja horizontal debajo de la "H"
+    paint.color = Colors.red.shade600;
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.2, size.height * 0.55, size.width * 0.6, size.height * 0.08),
+      paint,
+    );
+
+    // Ventanas azules a los lados
+    paint.color = const Color(0xFF87CEEB);
+    // Ventana izquierda
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.15, size.height * 0.3, size.width * 0.12, size.height * 0.15),
+      paint,
+    );
+    // Ventana derecha
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.73, size.height * 0.3, size.width * 0.12, size.height * 0.15),
+      paint,
+    );
+
+    // Base marrón claro
+    paint.color = const Color(0xFFDEB887);
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.05, size.height * 0.85, size.width * 0.9, size.height * 0.1),
+      paint,
+    );
+
+    // Plantas verdes en la base
+    paint.color = Colors.green.shade600;
+    // Planta izquierda
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.88, size.width * 0.15, size.height * 0.08),
+      paint,
+    );
+    // Planta derecha
+    canvas.drawOval(
+      Rect.fromLTWH(size.width * 0.75, size.height * 0.88, size.width * 0.15, size.height * 0.08),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 void _mostrarAlojamiento(BuildContext context) {
@@ -566,12 +912,18 @@ void _mostrarAlojamiento(BuildContext context) {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Alojamiento',
-                  style: GoogleFonts.allura(
-                    fontSize: 36,
-                    color: const Color(0xFFD4AF37),
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.hotel, color: Colors.blue.shade300, size: 32),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Alojamiento',
+                      style: GoogleFonts.allura(
+                        fontSize: 36,
+                        color: const Color(0xFFD4AF37),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 _hotel(
@@ -596,10 +948,10 @@ void _mostrarAlojamiento(BuildContext context) {
                 ),
                 const SizedBox(height: 12),
                 _hotel(
-                  'Abba Palacio de Soñanes Hotel (4*)',
-                  'Villacarriedo (15 km de la ceremonia)',
-                  'Palacio histórico, Jardín, Parking, WiFi',
-                  'https://www.abbahoteles.com/es/hoteles/abba-palacio-de-sonanes-hotel/',
+                  'Hotel Torresport (4*)',
+                  'Torrelavega (20 min de la ceremonia)',
+                  'Spa, Piscina climatizada, Gimnasio, Parking, WiFi',
+                  'https://www.hoteltorresport.com',
                 ),
                 const SizedBox(height: 16),
                 Align(
@@ -619,35 +971,317 @@ void _mostrarAlojamiento(BuildContext context) {
 }
 
 Widget _hotel(String nombre, String ubicacion, String servicios, String url) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(nombre, style: const TextStyle(fontWeight: FontWeight.w600)),
-      const SizedBox(height: 4),
-      Text('Ubicación: $ubicacion'),
-      Text('Servicios: $servicios'),
-      const SizedBox(height: 4),
-      InkWell(
-        onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-        child: const Text('Abrir web', style: TextStyle(color: Colors.blue)),
-      ),
-    ],
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey.shade300),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(nombre, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.location_on, color: Colors.red, size: 18),
+            const SizedBox(width: 6),
+            Expanded(child: Text('Ubicación: $ubicacion', style: const TextStyle(fontSize: 14))),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.star, color: const Color(0xFFD4AF37), size: 18),
+            const SizedBox(width: 6),
+            Expanded(child: Text('Servicios: $servicios', style: const TextStyle(fontSize: 14))),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.link, color: Colors.blue, size: 18),
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+              child: const Text('Abrir web', style: TextStyle(color: Colors.blue, fontSize: 14)),
+            ),
+          ],
+        ),
+      ],
+    ),
   );
 }
 
 void _mostrarRegalos(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Lista de Regalos',
-    'Vuestra compañía es el regalo más preciado.\n\nIBAN: ES61 0081 2714 1500 0827 1440',
+  showDialog(
+    context: context,
+    builder: (_) => const _RegalosDialog(),
   );
 }
 
+class _RegalosDialog extends StatefulWidget {
+  const _RegalosDialog();
+  
+  @override
+  State<_RegalosDialog> createState() => _RegalosDialogState();
+}
+
+class _RegalosDialogState extends State<_RegalosDialog> {
+  bool _ibanVisible = false;
+  static const _iban = 'ES61 0081 2714 1500 0827 1440';
+  
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.card_giftcard, color: Colors.blue.shade300, size: 32),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Regalos',
+                    style: GoogleFonts.allura(
+                      fontSize: 36,
+                      color: const Color(0xFFD4AF37),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Vuestra presencia es nuestro mejor regalo',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'No tendremos lista de bodas. Lo más importante para nosotros es compartir este día especial con vosotros.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Si queréis tener un detalle con nosotros',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Aquí os dejamos nuestro número de cuenta para que podáis hacernos un regalo si lo deseáis.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _ibanVisible ? _iban : '•••• •••• •••• •••• •••• ••••',
+                        style: TextStyle(
+                          color: const Color(0xFFD4AF37),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.copy,
+                        color: _ibanVisible ? const Color(0xFFD4AF37) : Colors.grey.shade400,
+                      ),
+                      onPressed: _ibanVisible
+                          ? () {
+                              Clipboard.setData(const ClipboardData(text: _iban));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('IBAN copiado al portapapeles'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          : null,
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _ibanVisible ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey.shade600,
+                      ),
+                      onPressed: () {
+                        setState(() => _ibanVisible = !_ibanVisible);
+                      },
+                      tooltip: _ibanVisible ? 'Ocultar número de cuenta' : 'Mostrar número de cuenta',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Mil gracias por acompañarnos en este día tan especial.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(color: const Color(0xFFD4AF37)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 void _mostrarParking(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Parking',
-    'Ceremonia (Soto‑Iruz): Aparcamiento gratuito, recomendable aparcar en arcén, plazas limitadas (~25).\n\nFinca (Villasevil): Aparcamiento gratuito con amplias zonas entre 50-150m.',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.local_parking, color: Colors.blue.shade300, size: 32),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Aparcamiento',
+                    style: GoogleFonts.allura(
+                      fontSize: 36,
+                      color: const Color(0xFFD4AF37),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _seccionParking(
+                icon: Icons.church,
+                iconColor: const Color(0xFFD4AF37),
+                titulo: 'CEREMONIA:',
+                contenido: 'Aparcamiento disponible en los alrededores del Convento de San Francisco de El Soto.',
+                onVerUbicacion: () => launchUrl(
+                  Uri.parse('https://maps.app.goo.gl/cZCa1bVXzQ5xjU9A7'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              const SizedBox(height: 20),
+              _seccionParking(
+                icon: Icons.celebration,
+                iconColor: Colors.orange,
+                titulo: 'CELEBRACIÓN:',
+                contenido: 'Se puede aparcar en los alrededores de la finca, en el pueblo. También hay un aparcamiento grande a 5 minutos andando de la finca, siguiendo la carretera nacional.',
+                onVerUbicacion: () => launchUrl(
+                  Uri.parse('https://maps.app.goo.gl/nZEFo6CF9Wm7JcFb7'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _seccionParking({
+  required IconData icon,
+  required Color iconColor,
+  required String titulo,
+  required String contenido,
+  required VoidCallback onVerUbicacion,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Icon(icon, color: iconColor, size: 24),
+          const SizedBox(width: 8),
+          Text(
+            titulo,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Text(
+        contenido,
+        style: const TextStyle(fontSize: 14),
+      ),
+      const SizedBox(height: 12),
+      Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5E6D3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: const Color(0xFFD4AF37).withOpacity(0.7),
+            width: 1,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onVerUbicacion,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.map_outlined,
+                    color: const Color(0xFFD4AF37),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ver ubicación del aparcamiento',
+                    style: TextStyle(
+                      color: const Color(0xFFD4AF37),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
   );
 }
 
@@ -656,10 +1290,51 @@ void _mostrarSubirFotos(BuildContext context) {
 }
 
 void _mostrarFotomaton(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Fotomatón',
-    'Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.camera_alt, color: Colors.blue.shade300, size: 32),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Fotomatón',
+                    style: GoogleFonts.allura(
+                      fontSize: 36,
+                      color: const Color(0xFFD4AF37),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(color: const Color(0xFFD4AF37)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
 }
 
