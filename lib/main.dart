@@ -465,28 +465,67 @@ class _CookieBarState extends State<_CookieBar> {
       alignment: Alignment.bottomCenter,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.85),
+          color: Colors.black.withOpacity(0.95),
           border: const Border(top: BorderSide(color: Colors.white24)),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: SafeArea(
           top: false,
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text(
-                  'Esta web utiliza cookies técnicas propias imprescindibles para su funcionamiento.',
-                  style: TextStyle(color: Colors.white),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Política de Cookies',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    onPressed: () => setState(() => _visible = false),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Esta web utiliza únicamente cookies técnicas propias que son estrictamente necesarias para el funcionamiento del sitio web. Estas cookies no recopilan información personal identificable y no se utilizan para fines de seguimiento o publicidad.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  height: 1.4,
                 ),
               ),
-              TextButton(
-                onPressed: () => setState(() => _visible = false),
-                child: const Text('Rechazar', style: TextStyle(color: Colors.white70)),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: () => setState(() => _visible = false),
-                child: const Text('Aceptar'),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => _visible = false),
+                    child: const Text(
+                      'Rechazar',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => setState(() => _visible = false),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AF37),
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text('Aceptar'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -527,7 +566,10 @@ void _dialogoSimple(BuildContext context, String titulo, String contenido) {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(color: const Color(0xFFD4AF37)),
+                  ),
                 ),
               ),
             ],
@@ -934,10 +976,10 @@ void _mostrarAlojamiento(BuildContext context) {
                 ),
                 const SizedBox(height: 12),
                 _hotel(
-                  'Posada La Anjana (3*)',
-                  'Puente Viesgo (8 km de la ceremonia)',
-                  'Vistas al río Pas, Jardín, Parking gratuito',
-                  'https://posadalaanjana.es/',
+                  'Hotel Bahía de Santander (4*)',
+                  'Santander',
+                  'Ubicación céntrica, Parking, WiFi, Servicios completos',
+                  'https://www.booking.com/searchresults.html?ss=Hotel+Bah%C3%ADa+de+Santander',
                 ),
                 const SizedBox(height: 12),
                 _hotel(
@@ -958,7 +1000,10 @@ void _mostrarAlojamiento(BuildContext context) {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
+                    child: Text(
+                      'Cerrar',
+                      style: TextStyle(color: const Color(0xFFD4AF37)),
+                    ),
                   ),
                 ),
               ],
@@ -1066,7 +1111,7 @@ class _RegalosDialogState extends State<_RegalosDialog> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'No tendremos lista de bodas. Lo más importante para nosotros es compartir este día especial con vosotros.',
+                'Lo más importante para nosotros es compartir este día especial con vosotros. No tendremos lista de bodas.',
                 style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 24),
@@ -1205,7 +1250,10 @@ void _mostrarParking(BuildContext context) {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(color: const Color(0xFFD4AF37)),
+                  ),
                 ),
               ),
             ],
