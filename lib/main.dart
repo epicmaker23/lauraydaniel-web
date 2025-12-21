@@ -44,10 +44,14 @@ class BodaApp extends StatelessWidget {
       routes: {
         '/': (_) => const HomePage(),
         '/formulario': (_) => const PreinscriptionPage(),
+        '/upload': (_) => const UploadPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/formulario' || settings.name == 'formulario') {
           return MaterialPageRoute(builder: (_) => const PreinscriptionPage());
+        }
+        if (settings.name == '/upload' || settings.name == 'upload') {
+          return MaterialPageRoute(builder: (_) => const UploadPage());
         }
         return null;
       },
@@ -55,6 +59,9 @@ class BodaApp extends StatelessWidget {
         final path = Uri.base.path;
         if (path == '/formulario' || path == 'formulario' || path == '/formulario/') {
           return [MaterialPageRoute(builder: (_) => const PreinscriptionPage())];
+        }
+        if (path == '/upload' || path == 'upload' || path == '/upload/') {
+          return [MaterialPageRoute(builder: (_) => const UploadPage())];
         }
         return [MaterialPageRoute(builder: (_) => const HomePage())];
       },
@@ -2255,4 +2262,310 @@ Future<void> _uploadViaRest(BuildContext context) async {
   scaffold.showSnackBar(
     const SnackBar(content: Text('¡Archivos subidos (REST) correctamente!')),
   );
+}
+
+class UploadPage extends StatefulWidget {
+  const UploadPage({super.key});
+  
+  @override
+  State<UploadPage> createState() => _UploadPageState();
+}
+
+class _UploadPageState extends State<UploadPage> {
+  bool _uploading = false;
+  int _uploadedCount = 0;
+  int _totalFiles = 0;
+
+  Future<void> _handleUpload() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
+      withData: true,
+    );
+    
+    if (result == null || result.files.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No seleccionaste archivos.')),
+        );
+      }
+      return;
+    }
+    
+    if (_supabaseUrl.isEmpty || _supabaseAnon.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Backend no configurado. Faltan SUPABASE_URL/ANON.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _uploading = true;
+      _uploadedCount = 0;
+      _totalFiles = result.files.length;
+    });
+
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')),
+    );
+
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    int successCount = 0;
+    int failCount = 0;
+
+    for (final file in result.files) {
+      final bytes = file.bytes;
+      if (bytes == null) {
+        failCount++;
+        if (mounted) {
+          scaffold.showSnackBar(
+            SnackBar(content: Text('No pude leer datos de ${file.name}.')),
+          );
+        }
+        setState(() => _uploadedCount++);
+        continue;
+      }
+      
+      final path = 'uploads/$today/${DateTime.now().millisecondsSinceEpoch}-${file.name}';
+      final mime = _inferMime(file.extension);
+
+      final uploadUri = Uri.parse('$_supabaseUrl/storage/v1/object/boda/$path');
+      final uploadResp = await http.post(
+        uploadUri,
+        headers: {
+          'Authorization': 'Bearer $_supabaseAnon',
+          'apikey': _supabaseAnon,
+          'Content-Type': mime,
+          'x-upsert': 'true',
+        },
+        body: bytes,
+      );
+      
+      if (uploadResp.statusCode >= 300) {
+        failCount++;
+        if (mounted) {
+          scaffold.showSnackBar(
+            SnackBar(
+              content: Text('Error subiendo ${file.name}: ${uploadResp.statusCode}'),
+            ),
+          );
+        }
+        setState(() => _uploadedCount++);
+        continue;
+      }
+
+      final publicUrl = '$_supabaseUrl/storage/v1/object/public/boda/$path';
+
+      final restUri = Uri.parse('$_supabaseUrl/rest/v1/boda.gallery_photos');
+      final insertResp = await http.post(
+        restUri,
+        headers: {
+          'Authorization': 'Bearer $_supabaseAnon',
+          'apikey': _supabaseAnon,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: '{"url":"$publicUrl","approved":false}',
+      );
+      
+      if (insertResp.statusCode >= 300) {
+        final restUri2 = Uri.parse('$_supabaseUrl/rest/v1/gallery_photos');
+        final insertResp2 = await http.post(
+          restUri2,
+          headers: {
+            'Authorization': 'Bearer $_supabaseAnon',
+            'apikey': _supabaseAnon,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: '{"url":"$publicUrl","approved":false}',
+        );
+        if (insertResp2.statusCode >= 300) {
+          failCount++;
+          if (mounted) {
+            scaffold.showSnackBar(
+              SnackBar(
+                content: Text('Error guardando ${file.name}: ${insertResp2.statusCode}'),
+              ),
+            );
+          }
+        } else {
+          successCount++;
+        }
+      } else {
+        successCount++;
+      }
+      
+      if (mounted) {
+        setState(() => _uploadedCount++);
+      }
+    }
+
+    setState(() => _uploading = false);
+
+    if (mounted) {
+      scaffold.clearSnackBars();
+      if (successCount > 0) {
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text('¡$successCount archivo(s) subido(s) correctamente!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      if (failCount > 0) {
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text('$failCount archivo(s) fallaron al subir.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFD4AF37);
+    
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/imagenPrincipal.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+          ),
+          Container(color: Colors.black.withOpacity(0.45)),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(.35),
+                        Colors.black.withOpacity(.55),
+                      ],
+                    ),
+                    border: Border.all(color: gold),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        blurRadius: 40,
+                        color: Colors.black38,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.photo_camera, color: gold, size: 32),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Subir Fotos y Videos',
+                              style: GoogleFonts.allura(
+                                fontSize: 36,
+                                color: gold,
+                                shadows: const [
+                                  Shadow(color: Colors.black54, blurRadius: 3),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Comparte tus momentos especiales de la boda',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Puedes subir múltiples fotos y videos a la vez. Los archivos se revisarán antes de publicarse en el álbum.',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 32),
+                        if (_uploading) ...[
+                          Column(
+                            children: [
+                              CircularProgressIndicator(
+                                value: _totalFiles > 0 ? _uploadedCount / _totalFiles : null,
+                                color: gold,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Subiendo $_uploadedCount de $_totalFiles archivos...',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                        FilledButton.icon(
+                          onPressed: _uploading ? null : _handleUpload,
+                          icon: const Icon(Icons.cloud_upload),
+                          label: Text(_uploading ? 'Subiendo...' : 'Seleccionar y Subir Archivos'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: gold,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.of(context).pushReplacementNamed('/'),
+                          icon: const Icon(Icons.home),
+                          label: const Text('Volver a la Página Principal'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: gold,
+                            side: const BorderSide(color: gold, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
