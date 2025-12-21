@@ -2517,7 +2517,7 @@ class _UploadPageState extends State<UploadPage> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
+                constraints: const BoxConstraints(maxWidth: 450),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -2537,23 +2537,51 @@ class _UploadPageState extends State<UploadPage> {
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(32),
+                    padding: ResponsiveHelper.getResponsivePadding(
+                      context,
+                      mobile: const EdgeInsets.all(16),
+                      desktop: const EdgeInsets.all(32),
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.photo_camera, color: gold, size: 32),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Subir Fotos y Videos',
-                              style: GoogleFonts.allura(
-                                fontSize: 36,
-                                color: gold,
-                                shadows: const [
-                                  Shadow(color: Colors.black54, blurRadius: 3),
-                                ],
+                            Icon(
+                              Icons.photo_camera,
+                              color: gold,
+                              size: ResponsiveHelper.getResponsiveValue(
+                                context,
+                                mobile: 24,
+                                desktop: 32,
+                              ),
+                            ),
+                            SizedBox(
+                              width: ResponsiveHelper.getResponsiveValue(
+                                context,
+                                mobile: 8,
+                                desktop: 12,
+                              ),
+                            ),
+                            Flexible(
+                              child: Text(
+                                'Subir Fotos y Videos',
+                                style: GoogleFonts.allura(
+                                  fontSize: ResponsiveHelper.getFontSize(
+                                    context,
+                                    mobile: 24,
+                                    desktop: 36,
+                                  ),
+                                  color: gold,
+                                  shadows: const [
+                                    Shadow(color: Colors.black54, blurRadius: 3),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -2594,33 +2622,120 @@ class _UploadPageState extends State<UploadPage> {
                           ),
                           const SizedBox(height: 32),
                         ],
-                        FilledButton.icon(
+                        FilledButton(
                           onPressed: _uploading ? null : _handleUpload,
-                          icon: const Icon(Icons.cloud_upload),
-                          label: Text(_uploading ? 'Subiendo...' : 'Seleccionar y Subir Archivos'),
                           style: FilledButton.styleFrom(
                             backgroundColor: gold,
                             foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                            padding: EdgeInsets.symmetric(
+                              vertical: ResponsiveHelper.getResponsiveValue(
+                                context,
+                                mobile: 20,
+                                desktop: 32,
+                              ),
+                              horizontal: ResponsiveHelper.getResponsiveValue(
+                                context,
+                                mobile: 16,
+                                desktop: 24,
+                              ),
                             ),
+                            minimumSize: const Size(double.infinity, 0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cloud_upload,
+                                size: ResponsiveHelper.getResponsiveValue(
+                                  context,
+                                  mobile: 24,
+                                  desktop: 32,
+                                ),
+                              ),
+                              SizedBox(
+                                width: ResponsiveHelper.getResponsiveValue(
+                                  context,
+                                  mobile: 8,
+                                  desktop: 12,
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  _uploading ? 'Subiendo...' : 'Seleccionar y Subir Archivos',
+                                  style: TextStyle(
+                                    fontSize: ResponsiveHelper.getFontSize(
+                                      context,
+                                      mobile: 16,
+                                      desktop: 20,
+                                    ),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 16),
-                        OutlinedButton.icon(
+                        OutlinedButton(
                           onPressed: () => Navigator.of(context).pushReplacementNamed('/'),
-                          icon: const Icon(Icons.home),
-                          label: const Text('Volver a la Página Principal'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: gold,
                             side: const BorderSide(color: gold, width: 1.5),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                            padding: EdgeInsets.symmetric(
+                              vertical: ResponsiveHelper.getResponsiveValue(
+                                context,
+                                mobile: 14,
+                                desktop: 16,
+                              ),
+                              horizontal: ResponsiveHelper.getResponsiveValue(
+                                context,
+                                mobile: 12,
+                                desktop: 16,
+                              ),
                             ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.home,
+                                size: ResponsiveHelper.getResponsiveValue(
+                                  context,
+                                  mobile: 20,
+                                  desktop: 24,
+                                ),
+                              ),
+                              SizedBox(
+                                width: ResponsiveHelper.getResponsiveValue(
+                                  context,
+                                  mobile: 8,
+                                  desktop: 10,
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  'Volver a la Página Principal',
+                                  style: TextStyle(
+                                    fontSize: ResponsiveHelper.getFontSize(
+                                      context,
+                                      mobile: 14,
+                                      desktop: 16,
+                                    ),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
