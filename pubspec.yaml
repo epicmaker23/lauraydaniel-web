@@ -1,5 +1,5 @@
 name: lauraydaniel_web
-description: Web boda Laura & Daniel (Flutter + Supabase)
+description: Web boda Laura & Daniel (Flutter + Firebase)
 publish_to: "none"
 version: 0.1.0+1
 
@@ -9,11 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  supabase_flutter: ^2.6.0
+  firebase_core: ^3.6.0
+  cloud_firestore: ^5.4.3
+  firebase_storage: ^12.3.4
   go_router: ^14.2.0
   intl: ^0.19.0
   url_launcher: ^6.3.0
-  flutter_dotenv: ^5.2.1 # si decides .env (web: compilar con variables)
+  flutter_dotenv: ^5.2.1
   google_fonts: ^6.2.1
   shared_preferences: ^2.2.3
   file_picker: ^8.0.3

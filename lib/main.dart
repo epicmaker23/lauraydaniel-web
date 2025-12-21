@@ -5,21 +5,85 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_web_plugins/url_strategy.dart';
 
-const _supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-const _supabaseAnon = String.fromEnvironment('SUPABASE_ANON', defaultValue: '');
-bool _supabaseReady = false;
+// Helper functions for responsive design
+class ResponsiveHelper {
+  static bool isMobile(BuildContext context) => MediaQuery.of(context).size.width < 600;
+  static bool isTablet(BuildContext context) => 
+      MediaQuery.of(context).size.width >= 600 && MediaQuery.of(context).size.width < 1024;
+  static bool isDesktop(BuildContext context) => MediaQuery.of(context).size.width >= 1024;
+  
+  static int getGridCrossAxisCount(BuildContext context, {int mobile = 1, int tablet = 2, int desktop = 3}) {
+    if (isMobile(context)) return mobile;
+    if (isTablet(context)) return tablet;
+    return desktop;
+  }
+  
+  static double getResponsiveValue(BuildContext context, {required double mobile, double? tablet, required double desktop}) {
+    if (isMobile(context)) return mobile;
+    if (isTablet(context)) return tablet ?? mobile;
+    return desktop;
+  }
+  
+  static EdgeInsets getResponsivePadding(BuildContext context, {
+    required EdgeInsets mobile,
+    EdgeInsets? tablet,
+    required EdgeInsets desktop,
+  }) {
+    if (isMobile(context)) return mobile;
+    if (isTablet(context)) return tablet ?? mobile;
+    return desktop;
+  }
+  
+  static double getFontSize(BuildContext context, {required double mobile, double? tablet, required double desktop}) {
+    if (isMobile(context)) return mobile;
+    if (isTablet(context)) return tablet ?? mobile;
+    return desktop;
+  }
+}
+
+// Firebase configuration
+const firebaseConfig = {
+  'apiKey': 'AIzaSyB-S08g6wd15r5Uko5LYj-jlwl-D5-nnBE',
+  'authDomain': 'lauraydaniel-boda-e81d9.firebaseapp.com',
+  'projectId': 'lauraydaniel-boda-e81d9',
+  'storageBucket': 'lauraydaniel-boda-e81d9.firebasestorage.app',
+  'messagingSenderId': '451517226012',
+  'appId': '1:451517226012:web:237110b6a8d5bc26ae93d9',
+  'measurementId': 'G-4086827BKM',
+};
+
+// Collections
+const String _rsvpCollection = 'rsvps';
+const String _galleryCollection = 'gallery_photos';
+const String _galleryPath = 'gallery';
+
+bool _firebaseReady = false;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setUrlStrategy(PathUrlStrategy());
-  if (_supabaseUrl.isNotEmpty && _supabaseAnon.isNotEmpty) {
-    await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnon);
-    _supabaseReady = true;
+  try {
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: firebaseConfig['apiKey']!,
+        authDomain: firebaseConfig['authDomain']!,
+        projectId: firebaseConfig['projectId']!,
+        storageBucket: firebaseConfig['storageBucket']!,
+        messagingSenderId: firebaseConfig['messagingSenderId']!,
+        appId: firebaseConfig['appId']!,
+        measurementId: firebaseConfig['measurementId'],
+      ),
+    );
+    _firebaseReady = true;
+  } catch (e) {
+    debugPrint('Error inicializando Firebase: $e');
   }
   runApp(const BodaApp());
 }
@@ -45,6 +109,8 @@ class BodaApp extends StatelessWidget {
         '/': (_) => const HomePage(),
         '/formulario': (_) => const PreinscriptionPage(),
         '/upload': (_) => const UploadPage(),
+        '/admin': (_) => const AdminPage(),
+        '/galeria': (_) => const GaleriaPage(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == '/formulario' || settings.name == 'formulario') {
@@ -52,6 +118,12 @@ class BodaApp extends StatelessWidget {
         }
         if (settings.name == '/upload' || settings.name == 'upload') {
           return MaterialPageRoute(builder: (_) => const UploadPage());
+        }
+        if (settings.name == '/admin' || settings.name == 'admin') {
+          return MaterialPageRoute(builder: (_) => const AdminPage());
+        }
+        if (settings.name == '/galeria' || settings.name == 'galeria') {
+          return MaterialPageRoute(builder: (_) => const GaleriaPage());
         }
         return null;
       },
@@ -62,6 +134,12 @@ class BodaApp extends StatelessWidget {
         }
         if (path == '/upload' || path == 'upload' || path == '/upload/') {
           return [MaterialPageRoute(builder: (_) => const UploadPage())];
+        }
+        if (path == '/admin' || path == 'admin' || path == '/admin/') {
+          return [MaterialPageRoute(builder: (_) => const AdminPage())];
+        }
+        if (path == '/galeria' || path == 'galeria' || path == '/galeria/') {
+          return [MaterialPageRoute(builder: (_) => const GaleriaPage())];
         }
         return [MaterialPageRoute(builder: (_) => const HomePage())];
       },
@@ -101,7 +179,11 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+        padding: ResponsiveHelper.getResponsivePadding(
+          context,
+          mobile: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          desktop: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+        ),
         shrinkWrap: true,
         children: [
           const _HeroCard(),
@@ -163,7 +245,7 @@ class _HomeContent extends StatelessWidget {
                   title: 'Subir Fotos',
                   subtitle: 'Álbum colaborativo',
                   detail: 'Comparte tus momentos',
-                  onTap: () => _mostrarSubirFotos(context),
+                  onTap: () => Navigator.of(context).pushNamed('/galeria'),
                 ),
                 _InfoCard(
                   icon: Icons.movie,
@@ -174,8 +256,27 @@ class _HomeContent extends StatelessWidget {
                 ),
               ];
               final width = constraints.maxWidth.clamp(0, 1200);
-              final cross = width >= 1100 ? 3 : (width >= 700 ? 2 : 1);
-              final aspect = cross == 3 ? 1.15 : (cross == 2 ? 1.1 : 1.0);
+              final screenWidth = MediaQuery.of(context).size.width;
+              int cross;
+              double aspect;
+              
+              if (screenWidth < 600) {
+                // Móvil: 1 columna
+                cross = 1;
+                aspect = 1.2;
+              } else if (screenWidth < 900) {
+                // Tablet pequeña: 2 columnas
+                cross = 2;
+                aspect = 1.1;
+              } else if (screenWidth < 1200) {
+                // Tablet grande / Desktop pequeño: 2-3 columnas
+                cross = width >= 1100 ? 3 : 2;
+                aspect = cross == 3 ? 1.15 : 1.1;
+              } else {
+                // Desktop: 3 columnas
+                cross = 3;
+                aspect = 1.15;
+              }
               return Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1200),
@@ -484,9 +585,9 @@ class _CookieBarState extends State<_CookieBar> {
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Expanded(
-                    child: Text(
+            children: [
+              const Expanded(
+                child: Text(
                       'Política de Cookies',
                       style: TextStyle(
                         color: Colors.white,
@@ -516,21 +617,21 @@ class _CookieBarState extends State<_CookieBar> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => setState(() => _visible = false),
+              TextButton(
+                onPressed: () => setState(() => _visible = false),
                     child: const Text(
                       'Rechazar',
                       style: TextStyle(color: Colors.white70),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: () => setState(() => _visible = false),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: () => setState(() => _visible = false),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFD4AF37),
                       foregroundColor: Colors.black,
                     ),
-                    child: const Text('Aceptar'),
+                child: const Text('Aceptar'),
                   ),
                 ],
               ),
@@ -548,38 +649,57 @@ Future<void> _abrirMapa(String direccion) async {
 }
 
 void _dialogoSimple(BuildContext context, String titulo, String contenido) {
+  final isMobile = MediaQuery.of(context).size.width < 600;
   showDialog(
     context: context,
     builder: (_) => Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                titulo,
-                style: GoogleFonts.allura(
-                  fontSize: 36,
-                  color: const Color(0xFFD4AF37),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(contenido),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cerrar',
-                    style: TextStyle(color: const Color(0xFFD4AF37)),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? double.infinity : 520,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 16 : 20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: GoogleFonts.allura(
+                    fontSize: ResponsiveHelper.getFontSize(
+                      context,
+                      mobile: 28,
+                      desktop: 36,
+                    ),
+                    color: const Color(0xFFD4AF37),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  contenido,
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getFontSize(
+                      context,
+                      mobile: 14,
+                      desktop: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cerrar',
+                      style: TextStyle(color: const Color(0xFFD4AF37)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1477,7 +1597,7 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     setState(() => _sending = true);
     try {
       final payload = _buildRsvpPayload();
-      await _sendRsvpToSupabase(payload);
+      await _sendRsvpToFirebase(payload);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('¡Preinscripción enviada!')),
@@ -1539,24 +1659,15 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     return data;
   }
 
-  Future<void> _sendRsvpToSupabase(Map<String, dynamic> payload) async {
-    if (_supabaseUrl.isEmpty || _supabaseAnon.isEmpty) {
-      throw 'Backend no configurado. Compila con SUPABASE_URL y SUPABASE_ANON.';
+  Future<void> _sendRsvpToFirebase(Map<String, dynamic> payload) async {
+    if (!_firebaseReady) {
+      throw 'Backend no configurado. Firebase no está inicializado.';
     }
-    final headers = {
-      'Authorization': 'Bearer $_supabaseAnon',
-      'apikey': _supabaseAnon,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation',
-    };
-    var uri = Uri.parse('$_supabaseUrl/rest/v1/boda.rsvps');
-    var resp = await http.post(uri, headers: headers, body: jsonEncode(payload));
-    if (resp.statusCode >= 300) {
-      uri = Uri.parse('$_supabaseUrl/rest/v1/rsvps');
-      resp = await http.post(uri, headers: headers, body: jsonEncode(payload));
-      if (resp.statusCode >= 300) {
-        throw 'HTTP ${resp.statusCode}: ${resp.body}';
-      }
+    try {
+      final firestore = FirebaseFirestore.instance;
+      await firestore.collection(_rsvpCollection).add(payload);
+    } catch (e) {
+      throw 'Error guardando RSVP: $e';
     }
   }
 
@@ -2177,10 +2288,10 @@ Future<void> _uploadViaRest(BuildContext context) async {
     );
     return;
   }
-  if (_supabaseUrl.isEmpty || _supabaseAnon.isEmpty) {
+  if (!_firebaseReady) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Backend no configurado (REST). Faltan SUPABASE_URL/ANON.'),
+        content: Text('Backend no configurado. Firebase no está inicializado.'),
       ),
     );
     return;
@@ -2188,80 +2299,72 @@ Future<void> _uploadViaRest(BuildContext context) async {
 
   final scaffold = ScaffoldMessenger.of(context);
   scaffold.showSnackBar(
-    SnackBar(content: Text('Subiendo (REST) ${result.files.length} archivo(s)...')),
+    SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')),
   );
 
+  final storage = FirebaseStorage.instance;
+  final firestore = FirebaseFirestore.instance;
   final today = DateTime.now().toIso8601String().substring(0, 10);
+  int successCount = 0;
+  int failCount = 0;
+
   for (final file in result.files) {
     final bytes = file.bytes;
     if (bytes == null) {
+      failCount++;
       scaffold.showSnackBar(
         SnackBar(content: Text('No pude leer datos de ${file.name}.')),
       );
       continue;
     }
-    final path = 'uploads/$today/${DateTime.now().millisecondsSinceEpoch}-${file.name}';
-    final mime = _inferMime(file.extension);
+    
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
+      final path = '$_galleryPath/$today/$fileName';
+      final ref = storage.ref(path);
+      
+      final metadata = SettableMetadata(
+        contentType: _inferMime(file.extension),
+      );
+      
+      await ref.putData(bytes, metadata);
+      final downloadUrl = await ref.getDownloadURL();
 
-    final uploadUri = Uri.parse('$_supabaseUrl/storage/v1/object/boda/$path');
-    final uploadResp = await http.post(
-      uploadUri,
-      headers: {
-        'Authorization': 'Bearer $_supabaseAnon',
-        'apikey': _supabaseAnon,
-        'Content-Type': mime,
-        'x-upsert': 'true',
-      },
-      body: bytes,
-    );
-    if (uploadResp.statusCode >= 300) {
+      await firestore.collection(_galleryCollection).add({
+        'url': downloadUrl,
+        'approved': false,
+        'created_at': FieldValue.serverTimestamp(),
+        'filename': file.name,
+      });
+      
+      successCount++;
+    } catch (e) {
+      failCount++;
       scaffold.showSnackBar(
         SnackBar(
-          content: Text('Fallo storage ${file.name}: ${uploadResp.statusCode} ${uploadResp.body}'),
+          content: Text('Error subiendo ${file.name}: $e'),
         ),
       );
-      continue;
-    }
-
-    final publicUrl = '$_supabaseUrl/storage/v1/object/public/boda/$path';
-
-    final restUri = Uri.parse('$_supabaseUrl/rest/v1/boda.gallery_photos');
-    final insertResp = await http.post(
-      restUri,
-      headers: {
-        'Authorization': 'Bearer $_supabaseAnon',
-        'apikey': _supabaseAnon,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: '{"url":"$publicUrl","approved":false}',
-    );
-    if (insertResp.statusCode >= 300) {
-      final restUri2 = Uri.parse('$_supabaseUrl/rest/v1/gallery_photos');
-      final insertResp2 = await http.post(
-        restUri2,
-        headers: {
-          'Authorization': 'Bearer $_supabaseAnon',
-          'apikey': _supabaseAnon,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: '{"url":"$publicUrl","approved":false}',
-      );
-      if (insertResp2.statusCode >= 300) {
-        scaffold.showSnackBar(
-          SnackBar(
-            content: Text('Fallo insert ${file.name}: ${insertResp2.statusCode} ${insertResp2.body}'),
-          ),
-        );
-      }
     }
   }
 
   scaffold.clearSnackBars();
-  scaffold.showSnackBar(
-    const SnackBar(content: Text('¡Archivos subidos (REST) correctamente!')),
-  );
+  if (successCount > 0) {
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text('¡$successCount archivo(s) subido(s) correctamente!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+  if (failCount > 0) {
+    scaffold.showSnackBar(
+      SnackBar(
+        content: Text('$failCount archivo(s) fallaron al subir.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 }
 
 class UploadPage extends StatefulWidget {
@@ -2293,11 +2396,11 @@ class _UploadPageState extends State<UploadPage> {
       return;
     }
     
-    if (_supabaseUrl.isEmpty || _supabaseAnon.isEmpty) {
+    if (!_firebaseReady) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Backend no configurado. Faltan SUPABASE_URL/ANON.'),
+            content: Text('Backend no configurado. Firebase no está inicializado.'),
           ),
         );
       }
@@ -2315,6 +2418,8 @@ class _UploadPageState extends State<UploadPage> {
       SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')),
     );
 
+    final storage = FirebaseStorage.instance;
+    final firestore = FirebaseFirestore.instance;
     final today = DateTime.now().toIso8601String().substring(0, 10);
     int successCount = 0;
     int failCount = 0;
@@ -2332,87 +2437,48 @@ class _UploadPageState extends State<UploadPage> {
         continue;
       }
       
-      final path = 'uploads/$today/${DateTime.now().millisecondsSinceEpoch}-${file.name}';
-      final mime = _inferMime(file.extension);
+      try {
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
+        final path = '$_galleryPath/$today/$fileName';
+        final ref = storage.ref(path);
+        
+        final metadata = SettableMetadata(
+          contentType: _inferMime(file.extension),
+        );
+        
+        await ref.putData(bytes, metadata);
+        final downloadUrl = await ref.getDownloadURL();
 
-      final uploadUri = Uri.parse('$_supabaseUrl/storage/v1/object/boda/$path');
-      final uploadResp = await http.post(
-        uploadUri,
-        headers: {
-          'Authorization': 'Bearer $_supabaseAnon',
-          'apikey': _supabaseAnon,
-          'Content-Type': mime,
-          'x-upsert': 'true',
-        },
-        body: bytes,
-      );
-      
-      if (uploadResp.statusCode >= 300) {
+        await firestore.collection(_galleryCollection).add({
+          'url': downloadUrl,
+          'approved': false,
+          'created_at': FieldValue.serverTimestamp(),
+          'filename': file.name,
+        });
+        
+        successCount++;
+      } catch (e) {
         failCount++;
         if (mounted) {
-          scaffold.showSnackBar(
-            SnackBar(
-              content: Text('Error subiendo ${file.name}: ${uploadResp.statusCode}'),
-            ),
-          );
-        }
-        setState(() => _uploadedCount++);
-        continue;
-      }
-
-      final publicUrl = '$_supabaseUrl/storage/v1/object/public/boda/$path';
-
-      final restUri = Uri.parse('$_supabaseUrl/rest/v1/boda.gallery_photos');
-      final insertResp = await http.post(
-        restUri,
-        headers: {
-          'Authorization': 'Bearer $_supabaseAnon',
-          'apikey': _supabaseAnon,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: '{"url":"$publicUrl","approved":false}',
-      );
-      
-      if (insertResp.statusCode >= 300) {
-        final restUri2 = Uri.parse('$_supabaseUrl/rest/v1/gallery_photos');
-        final insertResp2 = await http.post(
-          restUri2,
-          headers: {
-            'Authorization': 'Bearer $_supabaseAnon',
-            'apikey': _supabaseAnon,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
-          },
-          body: '{"url":"$publicUrl","approved":false}',
+        scaffold.showSnackBar(
+          SnackBar(
+              content: Text('Error subiendo ${file.name}: $e'),
+          ),
         );
-        if (insertResp2.statusCode >= 300) {
-          failCount++;
-          if (mounted) {
-            scaffold.showSnackBar(
-              SnackBar(
-                content: Text('Error guardando ${file.name}: ${insertResp2.statusCode}'),
-              ),
-            );
-          }
-        } else {
-          successCount++;
-        }
-      } else {
-        successCount++;
       }
+    }
       
       if (mounted) {
         setState(() => _uploadedCount++);
-      }
     }
+  }
 
     setState(() => _uploading = false);
 
     if (mounted) {
-      scaffold.clearSnackBars();
+  scaffold.clearSnackBars();
       if (successCount > 0) {
-        scaffold.showSnackBar(
+  scaffold.showSnackBar(
           SnackBar(
             content: Text('¡$successCount archivo(s) subido(s) correctamente!'),
             backgroundColor: Colors.green,
@@ -2565,6 +2631,1081 @@ class _UploadPageState extends State<UploadPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Login widget reutilizable
+class _LoginDialog extends StatefulWidget {
+  final String expectedUsername;
+  final String expectedPassword;
+  final VoidCallback onSuccess;
+  
+  const _LoginDialog({
+    required this.expectedUsername,
+    required this.expectedPassword,
+    required this.onSuccess,
+  });
+  
+  @override
+  State<_LoginDialog> createState() => _LoginDialogState();
+}
+
+class _LoginDialogState extends State<_LoginDialog> {
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+  
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
+  
+  Future<void> _handleLogin() async {
+    if (_usernameController.text.trim() != widget.expectedUsername ||
+        _passwordController.text != widget.expectedPassword) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usuario o contraseña incorrectos'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) {
+      Navigator.of(context).pop();
+      widget.onSuccess();
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFD4AF37);
+    return Dialog(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Iniciar Sesión',
+              style: GoogleFonts.allura(
+                fontSize: 32,
+                color: gold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _usernameController,
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _passwordFocusNode.requestFocus(),
+              decoration: InputDecoration(
+                labelText: 'Usuario',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: gold),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              focusNode: _passwordFocusNode,
+              obscureText: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _handleLogin(),
+              decoration: InputDecoration(
+                labelText: 'Contraseña',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: gold),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _isLoading ? null : _handleLogin,
+              style: FilledButton.styleFrom(
+                backgroundColor: gold,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Entrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Página de administración
+class AdminPage extends StatefulWidget {
+  const AdminPage({super.key});
+  
+  @override
+  State<AdminPage> createState() => _AdminPageState();
+}
+
+class _AdminPageState extends State<AdminPage> {
+  bool _isAuthenticated = false;
+  int _selectedTab = 0;
+  
+  void _showLogin() {
+    showDialog(
+      context: context,
+      builder: (_) => _LoginDialog(
+        expectedUsername: 'epicmaker',
+        expectedPassword: '25deabril',
+        onSuccess: () => setState(() => _isAuthenticated = true),
+      ),
+    );
+  }
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showLogin());
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    if (!_isAuthenticated) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: const Color(0xFFD4AF37)),
+        ),
+      );
+    }
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Panel de Administración',
+          style: GoogleFonts.allura(fontSize: 28, color: const Color(0xFFD4AF37)),
+        ),
+        backgroundColor: Colors.black,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => setState(() => _isAuthenticated = false),
+            tooltip: 'Cerrar sesión',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.black,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => setState(() => _selectedTab = 0),
+                    style: TextButton.styleFrom(
+                      backgroundColor: _selectedTab == 0
+                          ? const Color(0xFFD4AF37).withOpacity(0.3)
+                          : Colors.transparent,
+                    ),
+                    child: const Text('Confirmaciones', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => setState(() => _selectedTab = 1),
+                    style: TextButton.styleFrom(
+                      backgroundColor: _selectedTab == 1
+                          ? const Color(0xFFD4AF37).withOpacity(0.3)
+                          : Colors.transparent,
+                    ),
+                    child: const Text('Aprobar Fotos', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _selectedTab == 0
+                ? const _RsvpManagementTab()
+                : const _PhotoApprovalTab(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Tab de gestión de RSVPs
+class _RsvpManagementTab extends StatefulWidget {
+  const _RsvpManagementTab();
+  
+  @override
+  State<_RsvpManagementTab> createState() => _RsvpManagementTabState();
+}
+
+class _RsvpManagementTabState extends State<_RsvpManagementTab> {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection(_rsvpCollection)
+          .orderBy('created_at', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('No hay confirmaciones'));
+        }
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final doc = snapshot.data!.docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return Card(
+              color: Colors.grey[900],
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                title: Text(
+                  data['name'] ?? 'Sin nombre',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Email: ${data['email'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
+                    Text('Teléfono: ${data['phone'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
+                    Text('Asistencia: ${data['asistencia'] == 'si' ? 'Sí' : 'No'}', style: const TextStyle(color: Colors.white70)),
+                    if (data['asistencia'] == 'si') ...[
+                      Text('Adultos: ${data['num_adultos'] ?? 0}', style: const TextStyle(color: Colors.white70)),
+                      Text('12-18: ${data['num_12_18'] ?? 0}', style: const TextStyle(color: Colors.white70)),
+                      Text('0-12: ${data['num_0_12'] ?? 0}', style: const TextStyle(color: Colors.white70)),
+                    ],
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                      onPressed: () => _editRsvp(context, doc),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteRsvp(context, doc.id),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  Future<void> _deleteRsvp(BuildContext context, String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: const Text('¿Estás seguro de que quieres eliminar esta confirmación?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection(_rsvpCollection).doc(id).delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Confirmación eliminada'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+  
+  Future<void> _editRsvp(BuildContext context, DocumentSnapshot doc) async {
+    final data = doc.data() as Map<String, dynamic>;
+    final nameController = TextEditingController(text: data['name'] ?? '');
+    final emailController = TextEditingController(text: data['email'] ?? '');
+    
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Editar Confirmación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre')),
+            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                await doc.reference.update({
+                  'name': nameController.text,
+                  'email': emailController.text,
+                });
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Confirmación actualizada'), backgroundColor: Colors.green),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Tab de aprobación de fotos
+class _PhotoApprovalTab extends StatefulWidget {
+  const _PhotoApprovalTab();
+  
+  @override
+  State<_PhotoApprovalTab> createState() => _PhotoApprovalTabState();
+}
+
+class _PhotoApprovalTabState extends State<_PhotoApprovalTab> {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection(_galleryCollection)
+          .where('approved', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('No hay fotos pendientes de aprobación'));
+        }
+        
+        // Ordenar por fecha en el cliente
+        final docs = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aTime = a.data() as Map<String, dynamic>;
+            final bTime = b.data() as Map<String, dynamic>;
+            final aCreated = aTime['created_at'] as Timestamp?;
+            final bCreated = bTime['created_at'] as Timestamp?;
+            if (aCreated == null && bCreated == null) return 0;
+            if (aCreated == null) return 1;
+            if (bCreated == null) return -1;
+            return bCreated.compareTo(aCreated); // Descendente
+          });
+        
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final url = data['url'] as String?;
+            
+            if (url == null) return const SizedBox.shrink();
+            
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.grey[800],
+                      child: const Icon(Icons.broken_image, color: Colors.white54),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(8),
+                        bottomRight: Radius.circular(8),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check, color: Colors.green),
+                          onPressed: () => _approvePhoto(doc.id),
+                          tooltip: 'Aprobar',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red),
+                          onPressed: () => _rejectPhoto(doc.id),
+                          tooltip: 'Rechazar',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  Future<void> _approvePhoto(String id) async {
+    try {
+      await FirebaseFirestore.instance.collection(_galleryCollection).doc(id).update({
+        'approved': true,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto aprobada'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+  
+  Future<void> _rejectPhoto(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirmar rechazo'),
+        content: const Text('¿Estás seguro de que quieres rechazar esta foto?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Rechazar'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection(_galleryCollection).doc(id).delete();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Foto rechazada'), backgroundColor: Colors.orange),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+}
+
+// Página de galería
+class GaleriaPage extends StatefulWidget {
+  const GaleriaPage({super.key});
+  
+  @override
+  State<GaleriaPage> createState() => _GaleriaPageState();
+}
+
+class _GaleriaPageState extends State<GaleriaPage> {
+  bool _isAuthenticated = false;
+  int _currentPage = 0;
+  static const int _itemsPerPage = 10;
+  final Map<String, ImageProvider> _imageCache = {};
+  
+  void _showLogin() {
+    showDialog(
+      context: context,
+      builder: (_) => _LoginDialog(
+        expectedUsername: 'boda',
+        expectedPassword: '25deabril',
+        onSuccess: () => setState(() => _isAuthenticated = true),
+      ),
+    );
+  }
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showLogin());
+  }
+  
+  @override
+  void dispose() {
+    _imageCache.clear();
+    super.dispose();
+  }
+  
+  Widget _buildOptimizedImage(String url) {
+    // Usar cache si está disponible
+    if (_imageCache.containsKey(url)) {
+      return Image(
+        image: _imageCache[url]!,
+        fit: BoxFit.cover,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 200),
+            child: child,
+          );
+        },
+        errorBuilder: (_, __, ___) => Container(
+          color: Colors.grey[800],
+          child: const Icon(Icons.broken_image, color: Colors.white54),
+        ),
+      );
+    }
+    
+    // Cargar imagen con optimizaciones
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) {
+          // Cachear la imagen cuando se carga completamente
+          final imageProvider = NetworkImage(url);
+          _imageCache[url] = imageProvider;
+          return child;
+        }
+        return Container(
+          color: Colors.grey[900],
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+              strokeWidth: 2,
+              color: const Color(0xFFD4AF37),
+            ),
+          ),
+        );
+      },
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) return child;
+        return AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 200),
+          child: child,
+        );
+      },
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.grey[800],
+        child: const Icon(Icons.broken_image, color: Colors.white54),
+      ),
+    );
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    if (!_isAuthenticated) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: const Color(0xFFD4AF37)),
+        ),
+      );
+    }
+    
+    const gold = Color(0xFFD4AF37);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Galería de Fotos',
+            style: GoogleFonts.allura(
+              fontSize: ResponsiveHelper.getFontSize(
+                context,
+                mobile: 22,
+                desktop: 28,
+              ),
+              color: gold,
+            ),
+          ),
+        ),
+        centerTitle: false,
+        backgroundColor: Colors.black,
+        actions: [
+          Builder(
+            builder: (context) {
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection(_galleryCollection)
+                    .where('approved', isEqualTo: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  final isMobile = MediaQuery.of(context).size.width < 600;
+                  
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                        ),
+                        child: FilledButton.icon(
+                          onPressed: docs.isNotEmpty
+                              ? () => _downloadAllImages(context, docs)
+                              : null,
+                          icon: const Icon(Icons.download, color: Colors.black, size: 18),
+                          label: Text(
+                            'Descargar todo',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                              fontSize: isMobile ? 12 : 14,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: gold,
+                            foregroundColor: Colors.black,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 8 : 12,
+                              vertical: isMobile ? 6 : 8,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                        ),
+                        child: FilledButton.icon(
+                          onPressed: () => Navigator.of(context).pushNamed('/upload'),
+                          icon: const Icon(Icons.upload, color: Colors.black, size: 18),
+                          label: Text(
+                            'Subir fotos / videos',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                              fontSize: isMobile ? 12 : 14,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: gold,
+                            foregroundColor: Colors.black,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 8 : 12,
+                              vertical: isMobile ? 6 : 8,
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.logout, color: gold),
+                        onPressed: () => setState(() => _isAuthenticated = false),
+                        tooltip: 'Cerrar sesión',
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection(_galleryCollection)
+            .where('approved', isEqualTo: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.photo_library, size: 64, color: Colors.white54),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No hay fotos aprobadas aún',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pushNamed('/upload'),
+                    icon: const Icon(Icons.upload),
+                    label: const Text('Subir fotos / videos'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: gold,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          // Ordenar por fecha en el cliente
+          final docs = snapshot.data!.docs.toList()
+            ..sort((a, b) {
+              final aTime = a.data() as Map<String, dynamic>;
+              final bTime = b.data() as Map<String, dynamic>;
+              final aCreated = aTime['created_at'] as Timestamp?;
+              final bCreated = bTime['created_at'] as Timestamp?;
+              if (aCreated == null && bCreated == null) return 0;
+              if (aCreated == null) return 1;
+              if (bCreated == null) return -1;
+              return bCreated.compareTo(aCreated); // Descendente
+            });
+          
+          final totalPages = (docs.length / _itemsPerPage).ceil();
+          final startIndex = _currentPage * _itemsPerPage;
+          final endIndex = (startIndex + _itemsPerPage).clamp(0, docs.length);
+          final paginatedDocs = docs.sublist(startIndex, endIndex);
+          
+          return Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    int crossAxisCount;
+                    double spacing;
+                    
+                    if (screenWidth < 600) {
+                      // Móvil: 2 columnas
+                      crossAxisCount = 2;
+                      spacing = 8;
+                    } else if (screenWidth < 900) {
+                      // Tablet: 3 columnas
+                      crossAxisCount = 3;
+                      spacing = 10;
+                    } else if (screenWidth < 1400) {
+                      // Desktop pequeño: 4 columnas
+                      crossAxisCount = 4;
+                      spacing = 12;
+                    } else {
+                      // Desktop grande: 5 columnas
+                      crossAxisCount = 5;
+                      spacing = 12;
+                    }
+                    
+                    return GridView.builder(
+                      padding: EdgeInsets.all(ResponsiveHelper.getResponsiveValue(
+                        context,
+                        mobile: 8,
+                        desktop: 16,
+                      )),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                        childAspectRatio: 1.0,
+                      ),
+                  itemCount: paginatedDocs.length,
+                  itemBuilder: (context, index) {
+                    final doc = paginatedDocs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final url = data['url'] as String?;
+                    
+                    if (url == null) return const SizedBox.shrink();
+                    
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        GestureDetector(
+                          onTap: () => _showFullImage(context, url),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildOptimizedImage(url),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Material(
+                            color: Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(24),
+                            child: IconButton(
+                              icon: const Icon(Icons.download, color: Color(0xFFD4AF37), size: 28),
+                              onPressed: () => _downloadImage(url, data['filename'] as String?),
+                              padding: const EdgeInsets.all(8),
+                              constraints: const BoxConstraints(
+                                minWidth: 44,
+                                minHeight: 44,
+                              ),
+                              tooltip: 'Descargar',
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                    );
+                  },
+                ),
+              ),
+              if (totalPages > 1)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, color: Color(0xFFD4AF37)),
+                        onPressed: _currentPage > 0
+                            ? () => setState(() => _currentPage--)
+                            : null,
+                      ),
+                      Text(
+                        'Página ${_currentPage + 1} de $totalPages',
+                        style: const TextStyle(color: Color(0xFFD4AF37)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, color: Color(0xFFD4AF37)),
+                        onPressed: _currentPage < totalPages - 1
+                            ? () => setState(() => _currentPage++)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+  
+  Future<void> _downloadImage(String url, String? filename) async {
+    try {
+      await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al descargar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _downloadAllImages(BuildContext context, List<QueryDocumentSnapshot> docs) async {
+    if (docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay imágenes para descargar'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Descargando ${docs.length} archivo(s)...'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    
+    // Descargar todas las imágenes una por una
+    for (final doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final url = data['url'] as String?;
+      if (url != null) {
+        try {
+          await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          // Pequeña pausa entre descargas para evitar sobrecarga
+          await Future.delayed(const Duration(milliseconds: 500));
+        } catch (e) {
+          // Continuar con las siguientes aunque falle una
+          continue;
+        }
+      }
+    }
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Descargas iniciadas. Revisa tu carpeta de descargas.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+  
+  void _showFullImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(
+                  url,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: const Color(0xFFD4AF37),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Material(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                    child: IconButton(
+                      icon: const Icon(Icons.download, color: Colors.white),
+                      onPressed: () => _downloadImage(url, null),
+                      tooltip: 'Descargar',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Material(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
