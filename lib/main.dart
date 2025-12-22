@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,8 +7,53 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'dart:html' as html show VideoElement;
+import 'dart:ui_web' as ui_web;
+
+// Widget para reproducir videos en web
+class _VideoPlayerWidget extends StatefulWidget {
+  final String videoUrl;
+  
+  const _VideoPlayerWidget({required this.videoUrl});
+  
+  @override
+  State<_VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
+}
+
+class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
+  @override
+  void initState() {
+    super.initState();
+    _createVideoElement();
+  }
+  
+  void _createVideoElement() {
+    final videoElement = html.VideoElement()
+      ..src = widget.videoUrl
+      ..controls = true
+      ..style.width = '100%'
+      ..style.height = '100%'
+      ..autoplay = false;
+    
+    // Registrar el elemento HTML
+    final viewId = 'video-player-${widget.videoUrl.hashCode}';
+    ui_web.platformViewRegistry.registerViewFactory(
+      viewId,
+      (int viewId) => videoElement,
+    );
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    final viewId = 'video-player-${widget.videoUrl.hashCode}';
+    return SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: HtmlElementView(viewType: viewId),
+    );
+  }
+}
 
 // Helper functions for responsive design
 class ResponsiveHelper {
@@ -658,25 +701,25 @@ void _dialogoSimple(BuildContext context, String titulo, String contenido) {
           maxWidth: isMobile ? double.infinity : 520,
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
-        child: Padding(
+      child: Padding(
           padding: EdgeInsets.all(isMobile ? 16 : 20),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  titulo,
-                  style: GoogleFonts.allura(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: GoogleFonts.allura(
                     fontSize: ResponsiveHelper.getFontSize(
                       context,
                       mobile: 28,
                       desktop: 36,
                     ),
-                    color: const Color(0xFFD4AF37),
-                  ),
+                  color: const Color(0xFFD4AF37),
                 ),
-                const SizedBox(height: 12),
+              ),
+              const SizedBox(height: 12),
                 Text(
                   contenido,
                   style: TextStyle(
@@ -687,18 +730,18 @@ void _dialogoSimple(BuildContext context, String titulo, String contenido) {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
                     child: Text(
                       'Cerrar',
                       style: TextStyle(color: const Color(0xFFD4AF37)),
                     ),
-                  ),
                 ),
-              ],
+              ),
+            ],
             ),
           ),
         ),
@@ -2940,8 +2983,11 @@ class _AdminPageState extends State<AdminPage> {
         backgroundColor: Colors.black,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => setState(() => _isAuthenticated = false),
+            icon: const Icon(Icons.logout, color: Color(0xFFD4AF37)),
+            onPressed: () {
+              setState(() => _isAuthenticated = false);
+              Navigator.of(context).pushReplacementNamed('/');
+            },
             tooltip: 'Cerrar sesión',
           ),
         ],
@@ -2953,25 +2999,71 @@ class _AdminPageState extends State<AdminPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextButton(
+                  child: FilledButton(
                     onPressed: () => setState(() => _selectedTab = 0),
-                    style: TextButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       backgroundColor: _selectedTab == 0
-                          ? const Color(0xFFD4AF37).withOpacity(0.3)
-                          : Colors.transparent,
+                          ? const Color(0xFFD4AF37)
+                          : const Color(0xFFD4AF37).withOpacity(0.5),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Confirmaciones', style: TextStyle(color: Colors.white)),
+                    child: Text(
+                      'Confirmaciones',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: _selectedTab == 0 ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: TextButton(
+                  child: FilledButton(
                     onPressed: () => setState(() => _selectedTab = 1),
-                    style: TextButton.styleFrom(
+                    style: FilledButton.styleFrom(
                       backgroundColor: _selectedTab == 1
-                          ? const Color(0xFFD4AF37).withOpacity(0.3)
-                          : Colors.transparent,
+                          ? const Color(0xFFD4AF37)
+                          : const Color(0xFFD4AF37).withOpacity(0.5),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text('Aprobar Fotos', style: TextStyle(color: Colors.white)),
+                    child: Text(
+                      'Aprobar Fotos',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: _selectedTab == 1 ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => setState(() => _selectedTab = 2),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _selectedTab == 2
+                          ? const Color(0xFFD4AF37)
+                          : const Color(0xFFD4AF37).withOpacity(0.5),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: Text(
+                      'Borrar Fotos',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: _selectedTab == 2 ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -2980,7 +3072,9 @@ class _AdminPageState extends State<AdminPage> {
           Expanded(
             child: _selectedTab == 0
                 ? const _RsvpManagementTab()
-                : const _PhotoApprovalTab(),
+                : _selectedTab == 1
+                    ? const _PhotoApprovalTab()
+                    : const _DeletePhotosTab(),
           ),
         ],
       ),
@@ -3025,6 +3119,7 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
               color: Colors.grey[900],
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
+                onTap: () => _viewRsvpDetails(context, doc),
                 title: Text(
                   data['name'] ?? 'Sin nombre',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -3041,6 +3136,11 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                       Text('0-12: ${data['num_0_12'] ?? 0}', style: const TextStyle(color: Colors.white70)),
                     ],
                   ],
+                ),
+                leading: Icon(
+                  data['asistencia'] == 'si' ? Icons.check_circle : Icons.cancel,
+                  color: data['asistencia'] == 'si' ? Colors.green : Colors.red,
+                  size: 28,
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3101,52 +3201,852 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     }
   }
   
-  Future<void> _editRsvp(BuildContext context, DocumentSnapshot doc) async {
+  Future<void> _viewRsvpDetails(BuildContext context, DocumentSnapshot doc) async {
     final data = doc.data() as Map<String, dynamic>;
-    final nameController = TextEditingController(text: data['name'] ?? '');
-    final emailController = TextEditingController(text: data['email'] ?? '');
+    final gold = const Color(0xFFD4AF37);
+    
+    // Cargar acompañantes
+    List<Map<String, dynamic>> companionsData = [];
+    if (data['acompanantes_json'] != null) {
+      companionsData = List<Map<String, dynamic>>.from(data['acompanantes_json']);
+    }
     
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Editar Confirmación'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre')),
-            TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: 600,
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
           ),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await doc.reference.update({
-                  'name': nameController.text,
-                  'email': emailController.text,
-                });
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Confirmación actualizada'), backgroundColor: Colors.green),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            },
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
-            child: const Text('Guardar'),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                  border: Border(bottom: BorderSide(color: gold.withOpacity(0.3))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Detalles de la Confirmación',
+                        style: GoogleFonts.allura(
+                          fontSize: 28,
+                          color: gold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailSection('Información Principal', [
+                        _buildDetailRow('Nombre', data['name'] ?? 'N/A'),
+                        _buildDetailRow('Email', data['email'] ?? 'N/A'),
+                        _buildDetailRow('Teléfono', data['phone'] ?? 'N/A'),
+                        _buildDetailRow('Asistencia', data['asistencia'] == 'si' ? 'Sí' : 'No'),
+                      ]),
+                      if (data['asistencia'] == 'si') ...[
+                        const SizedBox(height: 16),
+                        _buildDetailSection('Acompañantes', [
+                          _buildDetailRow('Viene acompañado', data['companion'] == 'si' ? 'Sí' : 'No'),
+                          if (data['companion'] == 'si' && companionsData.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            ...companionsData.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final companion = entry.value;
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[700],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Acompañante ${index + 1}',
+                                      style: TextStyle(
+                                        color: gold,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildDetailRow('Nombre', companion['nombre'] ?? 'N/A', indent: 0),
+                                    _buildDetailRow('Edad', companion['edad'] ?? 'N/A', indent: 0),
+                                    if (companion['alergias'] != null && companion['alergias'].toString().isNotEmpty)
+                                      _buildDetailRow('Alergias', companion['alergias'] ?? 'Ninguna', indent: 0),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ]),
+                        const SizedBox(height: 16),
+                        _buildDetailSection('Transporte', [
+                          _buildDetailRow('¿Necesita transporte?', _formatYesNo(data['necesita_transporte'])),
+                          _buildDetailRow('¿Tiene coche propio?', _formatYesNo(data['coche_propio'])),
+                        ]),
+                        const SizedBox(height: 16),
+                        _buildDetailSection('Información Adicional', [
+                          if (data['canciones'] != null && data['canciones'].toString().isNotEmpty)
+                            _buildDetailRow('Canciones favoritas', data['canciones'] ?? 'N/A'),
+                          _buildDetailRow('¿Desea álbum digital?', _formatYesNo(data['album_digital'])),
+                          if (data['mensaje_novios'] != null && data['mensaje_novios'].toString().isNotEmpty)
+                            _buildDetailRow('Mensaje para los novios', data['mensaje_novios'] ?? 'N/A'),
+                        ]),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Cerrar',
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _editRsvp(context, doc);
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: gold,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      child: const Text(
+                        'Editar',
+                        style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDetailSection(String title, List<Widget> children) {
+    const gold = Color(0xFFD4AF37);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[800],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: gold.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: gold,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildDetailRow(String label, String value, {double indent = 0}) {
+    return Padding(
+      padding: EdgeInsets.only(left: indent, top: 8, bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 200,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                color: Colors.grey[300],
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+  
+  String _formatYesNo(dynamic value) {
+    if (value == null || value.toString().isEmpty) return 'No especificado';
+    final str = value.toString().toLowerCase();
+    if (str == 'si' || str == 'sí' || str == 'yes') return 'Sí';
+    if (str == 'no') return 'No';
+    return value.toString();
+  }
+  
+  Future<void> _editRsvp(BuildContext context, DocumentSnapshot doc) async {
+    final data = doc.data() as Map<String, dynamic>;
+    final gold = const Color(0xFFD4AF37);
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
+    // Función auxiliar para normalizar valores de sí/no
+    String? normalizeYesNo(String? value) {
+      if (value == null || value.isEmpty || value.trim().isEmpty) return null;
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'si' || normalized == 'sí' || normalized == 'yes') return 'si';
+      if (normalized == 'no') return 'no';
+      return null;
+    }
+    
+    // Controllers para datos principales
+    final nameController = TextEditingController(text: data['name'] ?? '');
+    final emailController = TextEditingController(text: data['email'] ?? '');
+    final phoneController = TextEditingController(text: data['phone'] ?? '');
+    final songsController = TextEditingController(text: data['canciones'] ?? '');
+    final messageController = TextEditingController(text: data['mensaje_novios'] ?? '');
+    
+    // Estado para asistencia y acompañante - normalizar valores
+    String asistencia = (data['asistencia']?.toString().trim().toLowerCase() ?? 'no');
+    if (asistencia != 'si' && asistencia != 'no') asistencia = 'no';
+    
+    String companion = (data['companion']?.toString().trim().toLowerCase() ?? 'no');
+    if (companion != 'si' && companion != 'no') companion = 'no';
+    
+    String? needTransportNormalized = normalizeYesNo(data['necesita_transporte']?.toString());
+    String needTransport = needTransportNormalized ?? '';
+    
+    String? ownCarNormalized = normalizeYesNo(data['coche_propio']?.toString());
+    String ownCar = ownCarNormalized ?? '';
+    
+    String? albumDigitalNormalized = normalizeYesNo(data['album_digital']?.toString());
+    String albumDigital = albumDigitalNormalized ?? '';
+    
+    // Cargar acompañantes
+    List<Map<String, dynamic>> companionsData = [];
+    if (data['acompanantes_json'] != null) {
+      companionsData = List<Map<String, dynamic>>.from(data['acompanantes_json']);
+    }
+    
+    // Controllers para acompañantes - normalizar valores de edad
+    final companionControllers = companionsData.map((c) {
+      String age = (c['edad']?.toString().trim() ?? 'adulto');
+      // Validar que la edad sea uno de los valores permitidos
+      if (age != 'adulto' && age != '12-18' && age != '0-12') {
+        age = 'adulto';
+      }
+      return {
+        'name': TextEditingController(text: c['nombre']?.toString().trim() ?? ''),
+        'age': age,
+        'allergies': TextEditingController(text: c['alergias']?.toString().trim() ?? ''),
+      };
+    }).toList();
+    
+    int numCompanions = companionControllers.length;
+    
+    await showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: isMobile ? double.infinity : 700,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border(bottom: BorderSide(color: gold.withOpacity(0.3))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Editar Confirmación',
+                          style: GoogleFonts.allura(
+                            fontSize: 28,
+                            color: gold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Información principal
+                        _buildSectionTitle('Información Principal'),
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Nombre',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: phoneController,
+                          decoration: InputDecoration(
+                            labelText: 'Teléfono',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Asistencia
+                        _buildSectionTitle('Asistencia'),
+                        SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(value: 'si', label: Text('Sí')),
+                            ButtonSegment(value: 'no', label: Text('No')),
+                          ],
+                          selected: {asistencia},
+                          onSelectionChanged: (Set<String> newSelection) {
+                            setState(() => asistencia = newSelection.first);
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Acompañantes
+                        if (asistencia == 'si') ...[
+                          _buildSectionTitle('Acompañantes'),
+                          SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(value: 'si', label: Text('Sí')),
+                              ButtonSegment(value: 'no', label: Text('No')),
+                            ],
+                            selected: {companion},
+                            onSelectionChanged: (Set<String> newSelection) {
+                              setState(() {
+                                companion = newSelection.first;
+                                if (companion == 'no') {
+                                  numCompanions = 0;
+                                  companionControllers.clear();
+                                } else if (companionControllers.isEmpty) {
+                                  numCompanions = 1;
+                                  companionControllers.add({
+                                    'name': TextEditingController(),
+                                    'age': 'adulto',
+                                    'allergies': TextEditingController(),
+                                  });
+                                }
+                              });
+                            },
+                          ),
+                          if (companion == 'si') ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: gold.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: gold.withOpacity(0.5), width: 2),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'Número de acompañantes:',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  IconButton(
+                                    onPressed: numCompanions > 0
+                                        ? () {
+                                            setState(() {
+                                              numCompanions--;
+                                              companionControllers.removeLast();
+                                            });
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.remove, color: Colors.black87),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '$numCompanions',
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: numCompanions < 9
+                                        ? () {
+                                            setState(() {
+                                              numCompanions++;
+                                              companionControllers.add({
+                                                'name': TextEditingController(),
+                                                'age': 'adulto',
+                                                'allergies': TextEditingController(),
+                                              });
+                                            });
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.add, color: Colors.black87),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ...companionControllers.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final controllers = entry.value;
+                              return Container(
+                                margin: const EdgeInsets.only(top: 16),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: gold.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: gold, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: gold.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: gold,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'Acompañante ${index + 1}',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: controllers['name'] as TextEditingController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Nombre',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      style: const TextStyle(color: Colors.black),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: controllers['age'] as String,
+                                      decoration: InputDecoration(
+                                        labelText: 'Edad',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      dropdownColor: Colors.white,
+                                      style: const TextStyle(color: Colors.black),
+                                      items: const [
+                                        DropdownMenuItem(value: 'adulto', child: Text('Adulto', style: TextStyle(color: Colors.black))),
+                                        DropdownMenuItem(value: '12-18', child: Text('12-18 años', style: TextStyle(color: Colors.black))),
+                                        DropdownMenuItem(value: '0-12', child: Text('0-12 años', style: TextStyle(color: Colors.black))),
+                                      ],
+                                      onChanged: (value) {
+                                        setState(() => controllers['age'] = value ?? 'adulto');
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: controllers['allergies'] as TextEditingController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Alergias (opcional)',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      style: const TextStyle(color: Colors.black),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                          const SizedBox(height: 24),
+                          
+                          // Transporte
+                          _buildSectionTitle('Transporte'),
+                          DropdownButtonFormField<String>(
+                            value: needTransport.isEmpty ? null : (needTransport == 'si' || needTransport == 'no' ? needTransport : null),
+                            decoration: InputDecoration(
+                              labelText: '¿Necesita transporte?',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(color: Colors.black),
+                            items: const [
+                              DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
+                              DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
+                              DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
+                            ],
+                            onChanged: (value) => setState(() => needTransport = value ?? ''),
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            value: ownCar.isEmpty ? null : (ownCar == 'si' || ownCar == 'no' ? ownCar : null),
+                            decoration: InputDecoration(
+                              labelText: '¿Tiene coche propio?',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(color: Colors.black),
+                            items: const [
+                              DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
+                              DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
+                              DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
+                            ],
+                            onChanged: (value) => setState(() => ownCar = value ?? ''),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                        
+                        // Canciones y mensaje
+                        _buildSectionTitle('Información Adicional'),
+                        TextField(
+                          controller: songsController,
+                          decoration: InputDecoration(
+                            labelText: 'Canciones favoritas (opcional)',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          maxLines: 2,
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: albumDigital.isEmpty ? null : (albumDigital == 'si' || albumDigital == 'no' ? albumDigital : null),
+                          decoration: InputDecoration(
+                            labelText: '¿Desea álbum digital?',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          dropdownColor: Colors.white,
+                          style: const TextStyle(color: Colors.black),
+                          items: const [
+                            DropdownMenuItem(value: null, child: Text('No especificado')),
+                            DropdownMenuItem(value: 'si', child: Text('Sí')),
+                            DropdownMenuItem(value: 'no', child: Text('No')),
+                          ],
+                          onChanged: (value) => setState(() => albumDigital = value ?? ''),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: messageController,
+                          decoration: InputDecoration(
+                            labelText: 'Mensaje para los novios (opcional)',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: gold),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton(
+                        onPressed: () async {
+                          try {
+                            // Calcular conteos
+                            int countAdult = 0, countTeen = 0, countKid = 0;
+                            if (companion == 'si' && companionControllers.isNotEmpty) {
+                              for (final c in companionControllers) {
+                                final age = c['age'] as String;
+                                if (age == 'adulto') countAdult++;
+                                if (age == '12-18') countTeen++;
+                                if (age == '0-12') countKid++;
+                              }
+                            }
+                            
+                            // Preparar datos de acompañantes
+                            List<Map<String, dynamic>> acompanantesJson = [];
+                            if (companion == 'si' && companionControllers.isNotEmpty) {
+                              acompanantesJson = companionControllers.map((c) {
+                                final nameCtrl = c['name'] as TextEditingController;
+                                final allergiesCtrl = c['allergies'] as TextEditingController;
+                                return {
+                                  'nombre': nameCtrl.text.trim(),
+                                  'edad': c['age'] as String,
+                                  'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim(),
+                                };
+                              }).toList();
+                            }
+                            
+                            // Actualizar documento
+                            await doc.reference.update({
+                              'name': nameController.text.trim(),
+                              'email': emailController.text.trim(),
+                              'phone': phoneController.text.trim(),
+                              'asistencia': asistencia,
+                              'companion': companion,
+                              'num_acompanantes': companion == 'si' ? companionControllers.length : 0,
+                              'num_adultos': countAdult,
+                              'num_12_18': countTeen,
+                              'num_0_12': countKid,
+                              'necesita_transporte': needTransport.isEmpty ? null : needTransport,
+                              'coche_propio': ownCar.isEmpty ? null : ownCar,
+                              'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim(),
+                              'album_digital': albumDigital.isEmpty ? null : albumDigital,
+                              'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim(),
+                              'acompanantes_json': acompanantesJson,
+                            });
+                            
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Confirmación actualizada'), backgroundColor: Colors.green),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                        style: FilledButton.styleFrom(backgroundColor: gold),
+                        child: const Text('Guardar', style: TextStyle(color: Colors.black)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    // Limpiar controllers al cerrar
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    songsController.dispose();
+    messageController.dispose();
+    for (final c in companionControllers) {
+      (c['name'] as TextEditingController).dispose();
+      (c['allergies'] as TextEditingController).dispose();
+    }
+  }
+  
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFFD4AF37),
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -3161,8 +4061,197 @@ class _PhotoApprovalTab extends StatefulWidget {
 }
 
 class _PhotoApprovalTabState extends State<_PhotoApprovalTab> {
+  int _currentPage = 0;
+  static const int _itemsPerPage = 10;
+  final Map<String, bool> _loadingStates = {};
+  
+  bool _isVideo(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.contains('.mp4') || 
+           lowerUrl.contains('.mov') || 
+           lowerUrl.contains('.webm') ||
+           lowerUrl.contains('video') ||
+           lowerUrl.contains('video/');
+  }
+  
+  void _showVideoPlayer(BuildContext context, String url, String docId) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(bottom: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.3))),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Reproductor de Video',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  color: Colors.black,
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: _VideoPlayerWidget(videoUrl: url),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(top: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.3))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _approvePhoto(docId);
+                      },
+                      icon: const Icon(Icons.check, color: Colors.white),
+                      label: const Text('Aprobar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _rejectPhoto(docId);
+                      },
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      label: const Text('Rechazar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMediaWidget(String url, {String? docId}) {
+    if (_isVideo(url)) {
+      return GestureDetector(
+        onTap: docId != null ? () => _showVideoPlayer(context, url, docId) : null,
+        child: Container(
+          color: Colors.grey[900],
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.videocam, color: Color(0xFFD4AF37), size: 48),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Video',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    if (docId != null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Toca para reproducir',
+                          style: TextStyle(color: Color(0xFFD4AF37), fontSize: 10),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) {
+          _loadingStates[url] = false;
+          return child;
+        }
+        _loadingStates[url] = true;
+        return Container(
+          color: Colors.grey[900],
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+              strokeWidth: 2,
+              color: const Color(0xFFD4AF37),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        _loadingStates[url] = false;
+        return Container(
+          color: Colors.grey[800],
+          child: const Icon(Icons.broken_image, color: Colors.white54),
+        );
+      },
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) return child;
+        if (frame == null) {
+          return Container(
+            color: Colors.grey[900],
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFD4AF37),
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        }
+        return AnimatedOpacity(
+          opacity: 1,
+          duration: const Duration(milliseconds: 200),
+          child: child,
+        );
+      },
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
+    const gold = Color(0xFFD4AF37);
+    
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection(_galleryCollection)
@@ -3179,81 +4268,141 @@ class _PhotoApprovalTabState extends State<_PhotoApprovalTab> {
           return const Center(child: Text('No hay fotos pendientes de aprobación'));
         }
         
-        // Ordenar por fecha en el cliente
+        // Ordenar por fecha en el cliente (más recientes primero)
         final docs = snapshot.data!.docs.toList()
           ..sort((a, b) {
-            final aTime = a.data() as Map<String, dynamic>;
-            final bTime = b.data() as Map<String, dynamic>;
-            final aCreated = aTime['created_at'] as Timestamp?;
-            final bCreated = bTime['created_at'] as Timestamp?;
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aCreated = aData['created_at'] as Timestamp?;
+            final bCreated = bData['created_at'] as Timestamp?;
             if (aCreated == null && bCreated == null) return 0;
             if (aCreated == null) return 1;
             if (bCreated == null) return -1;
             return bCreated.compareTo(aCreated); // Descendente
           });
         
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            final url = data['url'] as String?;
-            
-            if (url == null) return const SizedBox.shrink();
-            
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.broken_image, color: Colors.white54),
+        final totalPages = (docs.length / _itemsPerPage).ceil();
+        final startIndex = _currentPage * _itemsPerPage;
+        final endIndex = (startIndex + _itemsPerPage).clamp(0, docs.length);
+        final paginatedDocs = docs.sublist(startIndex, endIndex);
+        
+        return Column(
+          children: [
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  int crossAxisCount;
+                  double spacing;
+                  
+                  if (screenWidth < 600) {
+                    crossAxisCount = 2;
+                    spacing = 8;
+                  } else if (screenWidth < 900) {
+                    crossAxisCount = 3;
+                    spacing = 10;
+                  } else if (screenWidth < 1400) {
+                    crossAxisCount = 4;
+                    spacing = 12;
+                  } else {
+                    crossAxisCount = 5;
+                    spacing = 12;
+                  }
+                  
+                  return GridView.builder(
+                    padding: EdgeInsets.all(ResponsiveHelper.getResponsiveValue(
+                      context,
+                      mobile: 8,
+                      desktop: 16,
+                    )),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: spacing,
+                      mainAxisSpacing: spacing,
+                      childAspectRatio: 1.0,
                     ),
-                  ),
+                    itemCount: paginatedDocs.length,
+                    itemBuilder: (context, index) {
+                      final doc = paginatedDocs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      final url = data['url'] as String?;
+                      
+                      if (url == null) return const SizedBox.shrink();
+                      
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildMediaWidget(url, docId: doc.id),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.7),
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(8),
+                                  bottomRight: Radius.circular(8),
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.check, color: Colors.green),
+                                    onPressed: () => _approvePhoto(doc.id),
+                                    tooltip: 'Aprobar',
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.red),
+                                    onPressed: () => _rejectPhoto(doc.id),
+                                    tooltip: 'Rechazar',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            if (totalPages > 1)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
                 ),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(8),
-                        bottomRight: Radius.circular(8),
-                      ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, color: gold),
+                      onPressed: _currentPage > 0
+                          ? () => setState(() => _currentPage--)
+                          : null,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.check, color: Colors.green),
-                          onPressed: () => _approvePhoto(doc.id),
-                          tooltip: 'Aprobar',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red),
-                          onPressed: () => _rejectPhoto(doc.id),
-                          tooltip: 'Rechazar',
-                        ),
-                      ],
+                    Text(
+                      'Página ${_currentPage + 1} de $totalPages',
+                      style: const TextStyle(color: gold),
                     ),
-                  ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, color: gold),
+                      onPressed: _currentPage < totalPages - 1
+                          ? () => setState(() => _currentPage++)
+                          : null,
+                    ),
+                  ],
                 ),
-              ],
-            );
-          },
+              ),
+          ],
         );
       },
     );
@@ -3317,6 +4466,405 @@ class _PhotoApprovalTabState extends State<_PhotoApprovalTab> {
   }
 }
 
+// Tab de borrar fotos
+class _DeletePhotosTab extends StatefulWidget {
+  const _DeletePhotosTab();
+  
+  @override
+  State<_DeletePhotosTab> createState() => _DeletePhotosTabState();
+}
+
+class _DeletePhotosTabState extends State<_DeletePhotosTab> {
+  int _currentPage = 0;
+  static const int _itemsPerPage = 10;
+  final Map<String, bool> _loadingStates = {};
+  
+  bool _isVideo(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.contains('.mp4') || 
+           lowerUrl.contains('.mov') || 
+           lowerUrl.contains('.webm') ||
+           lowerUrl.contains('video') ||
+           lowerUrl.contains('video/');
+  }
+  
+  void _showVideoPlayer(BuildContext context, String url, String docId) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(bottom: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.3))),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Reproductor de Video',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  color: Colors.black,
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: _VideoPlayerWidget(videoUrl: url),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(top: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.3))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _deletePhoto(docId, url);
+                      },
+                      icon: const Icon(Icons.delete, color: Colors.white),
+                      label: const Text('Eliminar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildMediaWidget(String url, {String? docId}) {
+    if (_isVideo(url)) {
+      return GestureDetector(
+        onTap: docId != null ? () => _showVideoPlayer(context, url, docId) : null,
+        child: Container(
+          color: Colors.grey[900],
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.videocam, color: Color(0xFFD4AF37), size: 48),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Video',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    if (docId != null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Toca para reproducir',
+                          style: TextStyle(color: Color(0xFFD4AF37), fontSize: 10),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) {
+          _loadingStates[url] = false;
+          return child;
+        }
+        _loadingStates[url] = true;
+        return Container(
+          color: Colors.grey[900],
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+              strokeWidth: 2,
+              color: const Color(0xFFD4AF37),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        _loadingStates[url] = false;
+        return Container(
+          color: Colors.grey[800],
+          child: const Icon(Icons.broken_image, color: Colors.white54),
+        );
+      },
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) return child;
+        if (frame == null) {
+          return Container(
+            color: Colors.grey[900],
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFD4AF37),
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        }
+        return AnimatedOpacity(
+          opacity: 1,
+          duration: const Duration(milliseconds: 200),
+          child: child,
+        );
+      },
+    );
+  }
+  
+  Future<void> _deletePhoto(String id, String? url) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: const Text('¿Estás seguro de que quieres eliminar esta foto? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true) {
+      try {
+        // Eliminar de Firestore
+        await FirebaseFirestore.instance.collection(_galleryCollection).doc(id).delete();
+        
+        // Intentar eliminar de Storage si hay URL
+        if (url != null) {
+          try {
+            final ref = FirebaseStorage.instance.refFromURL(url);
+            await ref.delete();
+          } catch (e) {
+            // Si falla la eliminación de Storage, no es crítico
+            print('Error eliminando de Storage: $e');
+          }
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Foto eliminada'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFD4AF37);
+    
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection(_galleryCollection)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('No hay fotos para eliminar'));
+        }
+        
+        // Ordenar por fecha en el cliente (más recientes primero)
+        final docs = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aCreated = aData['created_at'] as Timestamp?;
+            final bCreated = bData['created_at'] as Timestamp?;
+            if (aCreated == null && bCreated == null) return 0;
+            if (aCreated == null) return 1;
+            if (bCreated == null) return -1;
+            return bCreated.compareTo(aCreated); // Descendente
+          });
+        
+        final totalPages = (docs.length / _itemsPerPage).ceil();
+        final startIndex = _currentPage * _itemsPerPage;
+        final endIndex = (startIndex + _itemsPerPage).clamp(0, docs.length);
+        final paginatedDocs = docs.sublist(startIndex, endIndex);
+        
+        return Column(
+          children: [
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  int crossAxisCount;
+                  double spacing;
+                  
+                  if (screenWidth < 600) {
+                    crossAxisCount = 2;
+                    spacing = 8;
+                  } else if (screenWidth < 900) {
+                    crossAxisCount = 3;
+                    spacing = 10;
+                  } else if (screenWidth < 1400) {
+                    crossAxisCount = 4;
+                    spacing = 12;
+                  } else {
+                    crossAxisCount = 5;
+                    spacing = 12;
+                  }
+                  
+                  return GridView.builder(
+                    padding: EdgeInsets.all(ResponsiveHelper.getResponsiveValue(
+                      context,
+                      mobile: 8,
+                      desktop: 16,
+                    )),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: spacing,
+                      mainAxisSpacing: spacing,
+                      childAspectRatio: 1.0,
+                    ),
+                    itemCount: paginatedDocs.length,
+                    itemBuilder: (context, index) {
+                      final doc = paginatedDocs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      final url = data['url'] as String?;
+                      final approved = data['approved'] ?? false;
+                      
+                      if (url == null) return const SizedBox.shrink();
+                      
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildMediaWidget(url, docId: doc.id),
+                          ),
+                          if (approved)
+                            Positioned(
+                              top: 4,
+                              left: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.8),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Aprobada',
+                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Material(
+                              color: Colors.black.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(24),
+                              child: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 24),
+                                onPressed: () => _deletePhoto(doc.id, url),
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                ),
+                                tooltip: 'Eliminar',
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            if (totalPages > 1)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, color: gold),
+                      onPressed: _currentPage > 0
+                          ? () => setState(() => _currentPage--)
+                          : null,
+                    ),
+                    Text(
+                      'Página ${_currentPage + 1} de $totalPages',
+                      style: const TextStyle(color: gold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, color: gold),
+                      onPressed: _currentPage < totalPages - 1
+                          ? () => setState(() => _currentPage++)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 // Página de galería
 class GaleriaPage extends StatefulWidget {
   const GaleriaPage({super.key});
@@ -3354,7 +4902,41 @@ class _GaleriaPageState extends State<GaleriaPage> {
     super.dispose();
   }
   
+  bool _isVideo(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.contains('.mp4') || 
+           lowerUrl.contains('.mov') || 
+           lowerUrl.contains('.webm') ||
+           lowerUrl.contains('video') ||
+           lowerUrl.contains('video/');
+  }
+  
   Widget _buildOptimizedImage(String url) {
+    // Detectar si es video
+    if (_isVideo(url)) {
+      return Container(
+        color: Colors.grey[900],
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.videocam, color: Color(0xFFD4AF37), size: 48),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Video',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     // Usar cache si está disponible
     if (_imageCache.containsKey(url)) {
       return Image(
@@ -3401,16 +4983,29 @@ class _GaleriaPageState extends State<GaleriaPage> {
       },
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
         if (wasSynchronouslyLoaded) return child;
+        if (frame == null) {
+          return Container(
+            color: Colors.grey[900],
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFD4AF37),
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        }
         return AnimatedOpacity(
-          opacity: frame == null ? 0 : 1,
+          opacity: 1,
           duration: const Duration(milliseconds: 200),
           child: child,
         );
       },
-      errorBuilder: (_, __, ___) => Container(
-        color: Colors.grey[800],
-        child: const Icon(Icons.broken_image, color: Colors.white54),
-      ),
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[800],
+          child: const Icon(Icons.broken_image, color: Colors.white54),
+        );
+      },
     );
   }
   
@@ -3451,6 +5046,7 @@ class _GaleriaPageState extends State<GaleriaPage> {
                 stream: FirebaseFirestore.instance
                     .collection(_galleryCollection)
                     .where('approved', isEqualTo: true)
+                    .orderBy('created_at', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
                   final docs = snapshot.data?.docs ?? [];
