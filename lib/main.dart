@@ -561,7 +561,11 @@ class _InfoCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(icon, size: iconSize, color: borderColor),
+                      Icon(
+                        icon,
+                        size: iconSize,
+                        color: const Color(0xFFD4AF37), // Dorado explícito para todos los iconos
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         title,
@@ -1715,8 +1719,10 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
   int _numCompanions = 1;
   List<_CompanionData> _companions = [];
   String? _needTransport;
+  String? _busStop; // 'santander' | 'torrelavega' | 'puente_viesgo'
   String? _ownCar;
   String? _albumDigital;
+  String? _needTrona; // 'si' | 'no' (solo para menores de 12 años)
   bool _sending = false;
 
   @override
@@ -1756,9 +1762,23 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_attendance == 'si') {
-      if (_companion == null || _needTransport == null || _ownCar == null || _albumDigital == null) {
+      if (_companion == null || _needTransport == null || _albumDigital == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Completa los campos obligatorios.')),
+        );
+        return;
+      }
+      // Validar parada de autobús si usa el autobús
+      if (_needTransport == 'si' && _busStop == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debes seleccionar desde dónde cogerás el autobús.')),
+        );
+        return;
+      }
+      // Validar trona para invitado principal si es menor de 12 años
+      if (_age == '0-12' && _needTrona == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debes indicar si necesitarás una trona.')),
         );
         return;
       }
@@ -1767,6 +1787,26 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
           if (_companions[i].name.text.trim().isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Nombre acompañante ${i + 1} obligatorio.')),
+            );
+            return;
+          }
+          if (_companions[i].needTransport == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Debes indicar si el acompañante ${i + 1} usará el autobús.')),
+            );
+            return;
+          }
+          // Validar parada de autobús si usa el autobús
+          if (_companions[i].needTransport == 'si' && _companions[i].busStop == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Debes seleccionar desde dónde cogerá el autobús el acompañante ${i + 1}.')),
+            );
+            return;
+          }
+          // Validar trona para acompañantes menores de 12 años
+          if (_companions[i].age == '0-12' && _companions[i].needTrona == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Debes indicar si el acompañante ${i + 1} necesitará una trona.')),
             );
             return;
           }
@@ -1780,8 +1820,20 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
       await _sendRsvpToFirebase(payload);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Preinscripción enviada!')),
+          const SnackBar(
+            content: Text(
+              '¡Confirmación enviada!',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
         );
+        // Redirigir a la portada después de un breve delay
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          }
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -1810,30 +1862,35 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     }
 
     final Map<String, dynamic> data = {
-      'name': _name.text.trim(),
-      'email': _email.text.trim(),
-      'phone': _phone.text.trim(),
+      'name': _name.text.trim().toUpperCase(),
+      'email': _email.text.trim().toUpperCase(),
+      'phone': _phone.text.trim().toUpperCase(),
       'asistencia': _attendance,
       'edad_principal': _age,
-      'alergias_principal': _allergies.text.trim().isEmpty ? null : _allergies.text.trim(),
+      'alergias_principal': _allergies.text.trim().isEmpty ? null : _allergies.text.trim().toUpperCase(),
       'acompanante': _companion,
       'num_acompanantes': _companion == 'si' ? _companions.length : 0,
       'num_adultos': countAdult,
       'num_12_18': countTeen,
       'num_0_12': countKid,
       'necesita_transporte': _needTransport,
+      'parada_autobus': _busStop, // 'santander' | 'torrelavega' | 'puente_viesgo'
       'coche_propio': _ownCar,
-      'canciones': _songs.text.trim().isEmpty ? null : _songs.text.trim(),
+      'necesita_trona': _needTrona, // solo para menores de 12 años
+      'canciones': _songs.text.trim().isEmpty ? null : _songs.text.trim().toUpperCase(),
       'album_digital': _albumDigital,
-      'mensaje_novios': _message.text.trim().isEmpty ? null : _message.text.trim(),
+      'mensaje_novios': _message.text.trim().isEmpty ? null : _message.text.trim().toUpperCase(),
       'created_at': DateTime.now().toIso8601String(),
       'origen_form': 'flutter_web',
     };
     if (_companion == 'si' && _companions.isNotEmpty) {
       data['acompanantes_json'] = _companions.map((c) => {
-        'nombre': c.name.text.trim(),
+        'nombre': c.name.text.trim().toUpperCase(),
         'edad': c.age,
-        'alergias': c.allergies.text.trim().isEmpty ? null : c.allergies.text.trim(),
+        'alergias': c.allergies.text.trim().isEmpty ? null : c.allergies.text.trim().toUpperCase(),
+        'necesita_transporte': c.needTransport,
+        'parada_autobus': c.busStop, // 'santander' | 'torrelavega' | 'puente_viesgo'
+        'necesita_trona': c.needTrona, // solo para menores de 12 años
       }).toList();
     }
     return data;
@@ -1924,21 +1981,50 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                 _TextField(
                                   controller: _name,
                                   label: 'Nombre y apellidos',
-                                  validator: (v) => v!.trim().isEmpty ? 'Campo obligatorio' : null,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]')),
+                                  ],
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'Campo obligatorio';
+                                    }
+                                    if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$').hasMatch(v.trim())) {
+                                      return 'Solo se permiten letras';
+                                    }
+                                    return null;
+                                  },
                                 ),
                                 _TextField(
                                   controller: _email,
                                   label: 'Correo electrónico',
                                   keyboardType: TextInputType.emailAddress,
-                                  validator: (v) => v!.trim().isEmpty || _isValidEmail(v.trim())
-                                      ? null
-                                      : 'Email no válido',
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'Campo obligatorio';
+                                    }
+                                    if (!_isValidEmail(v.trim())) {
+                                      return 'Email no válido';
+                                    }
+                                    return null;
+                                  },
                                 ),
                                 _TextField(
                                   controller: _phone,
                                   label: 'Teléfono',
                                   keyboardType: TextInputType.phone,
-                                  validator: (v) => v!.trim().isEmpty ? 'Campo obligatorio' : null,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(9),
+                                  ],
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'Campo obligatorio';
+                                    }
+                                    if (!RegExp(r'^\d{9}$').hasMatch(v.trim())) {
+                                      return 'Debe tener exactamente 9 dígitos';
+                                    }
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -1977,6 +2063,41 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                     label: 'Alergias o intolerancias',
                                     maxLines: 3,
                                   ),
+                                  if (_age == '0-12') ...[
+                                    const SizedBox(height: 8),
+                                    const Text('¿Necesitarás una trona?', style: TextStyle(color: Colors.white)),
+                                    const SizedBox(height: 8),
+                                    _RadioGroup(
+                                      value: _needTrona,
+                                      onChanged: (v) => setState(() => _needTrona = v),
+                                      items: const [('si', 'Sí'), ('no', 'No')],
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  const Text('¿Usarás el autobús?', style: TextStyle(color: Colors.white)),
+                                  const SizedBox(height: 8),
+                                  _RadioGroup(
+                                    value: _needTransport,
+                                    onChanged: (v) => setState(() {
+                                      _needTransport = v;
+                                      if (v == 'no') _busStop = null; // Limpiar parada si no usa autobús
+                                    }),
+                                    items: const [('si', 'Sí'), ('no', 'No')],
+                                  ),
+                                  if (_needTransport == 'si') ...[
+                                    const SizedBox(height: 12),
+                                    const Text('¿Desde dónde cogerás el autobús?', style: TextStyle(color: Colors.white)),
+                                    const SizedBox(height: 8),
+                                    _RadioGroup(
+                                      value: _busStop,
+                                      onChanged: (v) => setState(() => _busStop = v),
+                                      items: const [
+                                        ('santander', 'Santander'),
+                                        ('torrelavega', 'Torrelavega'),
+                                        ('puente_viesgo', 'Puente Viesgo'),
+                                      ],
+                                    ),
+                                  ],
                                   const SizedBox(height: 8),
                                   const Text('¿Vendrás acompañado?', style: TextStyle(color: Colors.white)),
                                   const SizedBox(height: 8),
@@ -2021,36 +2142,17 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                                       _CompanionCard(
                                         index: i + 1,
                                         data: _companions[i],
+                                        onTransportChanged: (value) => setState(() {
+                                          _companions[i].needTransport = value;
+                                          if (value == 'no') _companions[i].busStop = null; // Limpiar parada si no usa autobús
+                                        }),
+                                        onAgeChanged: (value) => setState(() => _companions[i].age = value),
+                                        onTronaChanged: (value) => setState(() => _companions[i].needTrona = value),
+                                        onBusStopChanged: (value) => setState(() => _companions[i].busStop = value),
                                       ),
                                   ],
                                 ),
                               ),
-                            _Section(
-                              title: 'Transporte',
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('¿Necesitas transporte?', style: TextStyle(color: Colors.white)),
-                                  const SizedBox(height: 8),
-                                  _RadioGroup(
-                                    value: _needTransport,
-                                    onChanged: (v) => setState(() => _needTransport = v),
-                                    items: const [('si', 'Sí'), ('no', 'No')],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    '¿Llevarás coche propio? (para organizar parking)',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _RadioGroup(
-                                    value: _ownCar,
-                                    onChanged: (v) => setState(() => _ownCar = v),
-                                    items: const [('si', 'Sí'), ('no', 'No')],
-                                  ),
-                                ],
-                              ),
-                            ),
                             _Section(
                               title: 'Entretenimiento',
                               child: _TextField(
@@ -2092,9 +2194,13 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFFD4AF37),
                               foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 32),
+                              minimumSize: const Size(double.infinity, 56),
                             ),
-                            child: Text(_sending ? 'Enviando...' : 'Enviar confirmación'),
+                            child: Text(
+                              _sending ? 'Enviando...' : 'Enviar confirmación',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ],
                       ),
@@ -2164,6 +2270,7 @@ class _EventDetailsSection extends StatelessWidget {
       required String title,
       String? imageAsset,
       required List<String> lines,
+      IconData? icon,
     }) {
       return Container(
         decoration: BoxDecoration(
@@ -2178,7 +2285,9 @@ class _EventDetailsSection extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 24)),
+              icon != null
+                  ? Icon(icon, size: 24, color: const Color(0xFFD4AF37))
+                  : Text(emoji, style: const TextStyle(fontSize: 24)),
               const SizedBox(height: 6),
               Text(
                 title,
@@ -2223,6 +2332,7 @@ class _EventDetailsSection extends StatelessWidget {
               title: 'Ceremonia',
               imageAsset: 'assets/images/santuario.jpg',
               lines: const ['Convento de San Francisco de El Soto', 'Soto‑Iruz – 12:30h'],
+              icon: Icons.church,
             ),
             detailCard(
               emoji: '🥂',
@@ -2295,6 +2405,7 @@ class _TextField extends StatelessWidget {
   final int maxLines;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
   
   const _TextField({
     required this.controller,
@@ -2302,6 +2413,7 @@ class _TextField extends StatelessWidget {
     this.maxLines = 1,
     this.keyboardType,
     this.validator,
+    this.inputFormatters,
   });
   
   @override
@@ -2312,6 +2424,7 @@ class _TextField extends StatelessWidget {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,
@@ -2349,9 +2462,12 @@ class _RadioGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     const gold = Color(0xFFD4AF37);
     ButtonStyle style(bool selected) => OutlinedButton.styleFrom(
-      foregroundColor: selected ? Colors.black : gold,
-      backgroundColor: selected ? gold : Colors.black.withOpacity(0.18),
-      side: const BorderSide(color: gold, width: 1.5),
+      foregroundColor: selected ? Colors.white : gold,
+      backgroundColor: selected ? gold : Colors.white.withOpacity(0.1),
+      side: BorderSide(
+        color: gold,
+        width: selected ? 2.0 : 1.5,
+      ),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       shape: const StadiumBorder(),
       textStyle: const TextStyle(fontWeight: FontWeight.w600),
@@ -2376,13 +2492,27 @@ class _CompanionData {
   final TextEditingController name = TextEditingController();
   String age = 'adulto';
   final TextEditingController allergies = TextEditingController();
+  String? needTransport; // 'si' | 'no'
+  String? busStop; // 'santander' | 'torrelavega' | 'puente_viesgo'
+  String? needTrona; // 'si' | 'no' (solo para menores de 12 años)
 }
 
 class _CompanionCard extends StatelessWidget {
   final int index;
   final _CompanionData data;
+  final ValueChanged<String?> onTransportChanged;
+  final ValueChanged<String> onAgeChanged;
+  final ValueChanged<String?> onTronaChanged;
+  final ValueChanged<String?> onBusStopChanged;
   
-  const _CompanionCard({required this.index, required this.data});
+  const _CompanionCard({
+    required this.index,
+    required this.data,
+    required this.onTransportChanged,
+    required this.onAgeChanged,
+    required this.onTronaChanged,
+    required this.onBusStopChanged,
+  });
   
   @override
   Widget build(BuildContext context) {
@@ -2403,29 +2533,29 @@ class _CompanionCard extends StatelessWidget {
           TextFormField(
             controller: data.name,
             decoration: const InputDecoration(labelText: 'Nombre y apellidos'),
-            validator: (v) => v!.trim().isEmpty ? 'Campo obligatorio' : null,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]')),
+            ],
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Campo obligatorio';
+              }
+              if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$').hasMatch(v.trim())) {
+                return 'Solo se permiten letras';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 8),
-          const Text('Grupo de edad'),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 12,
-            children: [
-              ChoiceChip(
-                label: const Text('Adulto (+18)'),
-                selected: data.age == 'adulto',
-                onSelected: (_) => data.age = 'adulto',
-              ),
-              ChoiceChip(
-                label: const Text('12-18 años'),
-                selected: data.age == '12-18',
-                onSelected: (_) => data.age = '12-18',
-              ),
-              ChoiceChip(
-                label: const Text('Menor 12 años'),
-                selected: data.age == '0-12',
-                onSelected: (_) => data.age = '0-12',
-              ),
+          const Text('Grupo de edad', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          _RadioGroup(
+            value: data.age,
+            onChanged: (v) => onAgeChanged(v ?? 'adulto'),
+            items: const [
+              ('adulto', 'Adulto (+18)'),
+              ('12-18', '12-18 años'),
+              ('0-12', 'Menor 12 años'),
             ],
           ),
           const SizedBox(height: 8),
@@ -2436,6 +2566,38 @@ class _CompanionCard extends StatelessWidget {
             ),
             maxLines: 2,
           ),
+          const SizedBox(height: 12),
+          const Text('¿Usarás el autobús?', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          _RadioGroup(
+            value: data.needTransport,
+            onChanged: onTransportChanged,
+            items: const [('si', 'Sí'), ('no', 'No')],
+          ),
+          if (data.needTransport == 'si') ...[
+            const SizedBox(height: 12),
+            const Text('¿Desde dónde cogerá el autobús?', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            _RadioGroup(
+              value: data.busStop,
+              onChanged: onBusStopChanged,
+              items: const [
+                ('santander', 'Santander'),
+                ('torrelavega', 'Torrelavega'),
+                ('puente_viesgo', 'Puente Viesgo'),
+              ],
+            ),
+          ],
+          if (data.age == '0-12') ...[
+            const SizedBox(height: 12),
+            const Text('¿Necesitará una trona?', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            _RadioGroup(
+              value: data.needTrona,
+              onChanged: onTronaChanged,
+              items: const [('si', 'Sí'), ('no', 'No')],
+            ),
+          ],
         ],
       ),
     );
@@ -4109,18 +4271,18 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                 final nameCtrl = c['name'] as TextEditingController;
                                 final allergiesCtrl = c['allergies'] as TextEditingController;
                                 return {
-                                  'nombre': nameCtrl.text.trim(),
+                                  'nombre': nameCtrl.text.trim().toUpperCase(),
                                   'edad': c['age'] as String,
-                                  'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim(),
+                                  'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim().toUpperCase(),
                                 };
                               }).toList();
                             }
                             
                             // Actualizar documento
                             await doc.reference.update({
-                              'name': nameController.text.trim(),
-                              'email': emailController.text.trim(),
-                              'phone': phoneController.text.trim(),
+                              'name': nameController.text.trim().toUpperCase(),
+                              'email': emailController.text.trim().toUpperCase(),
+                              'phone': phoneController.text.trim().toUpperCase(),
                               'asistencia': asistencia,
                               'companion': companion,
                               'num_acompanantes': companion == 'si' ? companionControllers.length : 0,
@@ -4129,9 +4291,9 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               'num_0_12': countKid,
                               'necesita_transporte': needTransport.isEmpty ? null : needTransport,
                               'coche_propio': ownCar.isEmpty ? null : ownCar,
-                              'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim(),
+                              'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim().toUpperCase(),
                               'album_digital': albumDigital.isEmpty ? null : albumDigital,
-                              'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim(),
+                              'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim().toUpperCase(),
                               'acompanantes_json': acompanantesJson,
                             });
                             
