@@ -751,11 +751,148 @@ void _dialogoSimple(BuildContext context, String titulo, String contenido) {
 }
 
 void _mostrarRecordatorios(BuildContext context) {
-  _dialogoSimple(
-    context,
-    'Recordatorios',
-    'Se crearán 2 recordatorios: 1 semana antes (18/04/2026 10:00) y 3 horas antes (25/04/2026 09:30).',
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 450),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.event_available, color: const Color(0xFFD4AF37), size: 32),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Recordatorios',
+                    style: GoogleFonts.allura(
+                      fontSize: 36,
+                      color: const Color(0xFFD4AF37),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Añade recordatorios a tu calendario para no perderte nuestra boda.',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Puedes crear dos recordatorios:',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              // Botones de recordatorios
+              _RecordatorioButton(
+                text: 'Recordatorio 1 semana antes',
+                onTap: () {
+                  // Crear recordatorio 1 semana antes (18/04/2026 10:00)
+                  final fecha = DateTime(2026, 4, 18, 10, 0);
+                  _crearRecordatorioCalendario(context, fecha, 'Recordatorio boda Laura & Daniel - 1 semana antes');
+                },
+              ),
+              const SizedBox(height: 12),
+              _RecordatorioButton(
+                text: 'Recordatorio 3 horas antes',
+                onTap: () {
+                  // Crear recordatorio 3 horas antes (25/04/2026 09:30)
+                  final fecha = DateTime(2026, 4, 25, 9, 30);
+                  _crearRecordatorioCalendario(context, fecha, 'Recordatorio boda Laura & Daniel - 3 horas antes');
+                },
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(color: const Color(0xFFD4AF37)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
   );
+}
+
+class _RecordatorioButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  const _RecordatorioButton({required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFD4AF37), // dorado
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_today, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _crearRecordatorioCalendario(BuildContext context, DateTime fecha, String titulo) async {
+  // Formato para Google Calendar
+  final fechaInicio = fecha.toUtc();
+  final fechaFin = fechaInicio.add(const Duration(hours: 1));
+  
+  final fechaInicioStr = '${fechaInicio.year}${fechaInicio.month.toString().padLeft(2, '0')}${fechaInicio.day.toString().padLeft(2, '0')}T${fechaInicio.hour.toString().padLeft(2, '0')}${fechaInicio.minute.toString().padLeft(2, '0')}00Z';
+  final fechaFinStr = '${fechaFin.year}${fechaFin.month.toString().padLeft(2, '0')}${fechaFin.day.toString().padLeft(2, '0')}T${fechaFin.hour.toString().padLeft(2, '0')}${fechaFin.minute.toString().padLeft(2, '0')}00Z';
+  
+  final detalles = 'Boda de Laura & Daniel\n\nCeremonia: Convento de San Francisco de El Soto, Soto-Iruz - 12:30h\nCelebración: Finca La Real Labranza de Villasevil - 14:00h';
+  final ubicacion = 'Cantabria, España';
+  
+  final url = Uri.parse(
+    'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    '&text=${Uri.encodeComponent(titulo)}'
+    '&dates=$fechaInicioStr/$fechaFinStr'
+    '&details=${Uri.encodeComponent(detalles)}'
+    '&location=${Uri.encodeComponent(ubicacion)}'
+  );
+  
+  try {
+    await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recordatorio añadido a tu calendario')),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al abrir el calendario: $e')),
+      );
+    }
+  }
 }
 
 Widget _BusIcon({double size = 32}) {
@@ -903,7 +1040,7 @@ void _mostrarTransporte(BuildContext context) {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.directions_bus, color: Colors.blue.shade300, size: 32),
+                    Icon(Icons.directions_bus, color: const Color(0xFFD4AF37), size: 32),
                     const SizedBox(width: 12),
                     Text(
                       'Transporte',
@@ -1126,7 +1263,7 @@ void _mostrarAlojamiento(BuildContext context) {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.hotel, color: Colors.blue.shade300, size: 32),
+                    Icon(Icons.hotel, color: const Color(0xFFD4AF37), size: 32),
                     const SizedBox(width: 12),
                     Text(
                       'Alojamiento',
@@ -1263,7 +1400,7 @@ class _RegalosDialogState extends State<_RegalosDialog> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.card_giftcard, color: Colors.blue.shade300, size: 32),
+                  Icon(Icons.card_giftcard, color: const Color(0xFFD4AF37), size: 32),
                   const SizedBox(width: 12),
                   Text(
                     'Regalos',
@@ -1382,7 +1519,7 @@ void _mostrarParking(BuildContext context) {
             children: [
               Row(
                 children: [
-                  Icon(Icons.local_parking, color: Colors.blue.shade300, size: 32),
+                  Icon(Icons.local_parking, color: const Color(0xFFD4AF37), size: 32),
                   const SizedBox(width: 12),
                   Text(
                     'Aparcamiento',
@@ -1521,7 +1658,7 @@ void _mostrarFotomaton(BuildContext context) {
             children: [
               Row(
                 children: [
-                  Icon(Icons.camera_alt, color: Colors.blue.shade300, size: 32),
+                  Icon(Icons.camera_alt, color: const Color(0xFFD4AF37), size: 32),
                   const SizedBox(width: 12),
                   Text(
                     'Fotomatón',
@@ -3339,7 +3476,7 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                       onPressed: () => Navigator.pop(context),
                       child: const Text(
                         'Cerrar',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                        style: TextStyle(color: Color(0xFFD4AF37), fontSize: 16),
                       ),
                     ),
                     const SizedBox(width: 12),
