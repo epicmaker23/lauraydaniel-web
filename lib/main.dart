@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
-import 'dart:html' as html show VideoElement;
+import 'package:excel/excel.dart' as excel_lib;
+import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
 
 // Widget para reproducir videos en web
@@ -144,9 +146,9 @@ class BodaApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFFD4AF37),
         scaffoldBackgroundColor: Colors.black,
         textTheme: Theme.of(context).textTheme.apply(
-          bodyColor: const Color(0xFF3B3B3B),
-          displayColor: const Color(0xFF3B3B3B),
-        ),
+              bodyColor: const Color(0xFF3B3B3B),
+              displayColor: const Color(0xFF3B3B3B),
+            ),
       ),
       routes: {
         '/': (_) => const HomePage(),
@@ -376,24 +378,24 @@ class _HeroCard extends StatelessWidget {
                         height: 480,
                         child: ColorFiltered(
                           colorFilter: ColorFilter.mode(gold, BlendMode.srcIn),
-                          child: Image.asset(
+                      child: Image.asset(
                             'assets/images/logoNuevo2.png',
                             width: 480,
                             height: 480,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                            errorBuilder: (_, __, ___) => Text(
-                              'L&D',
-                              style: GoogleFonts.allura(
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                        errorBuilder: (_, __, ___) => Text(
+                          'L&D',
+                          style: GoogleFonts.allura(
                                 fontSize: 240,
                                 color: gold,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
+                  ),
+                ),
                   ),
                 ),
                 const SizedBox(height: 0),
@@ -771,7 +773,7 @@ void _mostrarRecordatorios(BuildContext context) {
                   Icon(Icons.event_available, color: const Color(0xFFD4AF37), size: 32),
                   const SizedBox(width: 12),
                   Text(
-                    'Recordatorios',
+    'Recordatorios',
                     style: GoogleFonts.allura(
                       fontSize: 36,
                       color: const Color(0xFFD4AF37),
@@ -1047,7 +1049,7 @@ void _mostrarTransporte(BuildContext context) {
                     Icon(Icons.directions_bus, color: const Color(0xFFD4AF37), size: 32),
                     const SizedBox(width: 12),
                     Text(
-                      'Transporte',
+    'Transporte',
                       style: GoogleFonts.allura(
                         fontSize: 36,
                         color: const Color(0xFFD4AF37),
@@ -1281,8 +1283,8 @@ void _mostrarAlojamiento(BuildContext context) {
                 const SizedBox(height: 12),
                 _hotel(
                   'Gran Hotel Balneario de Puente Viesgo (4*)',
-                  'Puente Viesgo (8 km de la ceremonia)',
-                  'Spa, Balneario, Templo del Agua, Piscinas',
+                    'Puente Viesgo (8 km de la ceremonia)',
+                    'Spa, Balneario, Templo del Agua, Piscinas',
                   'https://balneariodepuenteviesgo.com',
                 ),
                 const SizedBox(height: 12),
@@ -1295,8 +1297,8 @@ void _mostrarAlojamiento(BuildContext context) {
                 const SizedBox(height: 12),
                 _hotel(
                   'Posada Rincón del Pas (3*)',
-                  'Puente Viesgo centro',
-                  'Terraza, Bar, Jardín, WiFi',
+                    'Puente Viesgo centro',
+                    'Terraza, Bar, Jardín, WiFi',
                   'https://www.booking.com/hotel/es/posada-rincon-del-pas.html',
                 ),
                 const SizedBox(height: 12),
@@ -1335,8 +1337,8 @@ Widget _hotel(String nombre, String ubicacion, String servicios, String url) {
       borderRadius: BorderRadius.circular(8),
     ),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
         Text(nombre, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
         const SizedBox(height: 8),
         Row(
@@ -1362,11 +1364,11 @@ Widget _hotel(String nombre, String ubicacion, String servicios, String url) {
           children: [
             Icon(Icons.link, color: Colors.blue, size: 18),
             const SizedBox(width: 6),
-            InkWell(
-              onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      InkWell(
+        onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
               child: const Text('Abrir web', style: TextStyle(color: Colors.blue, fontSize: 14)),
-            ),
-          ],
+      ),
+    ],
         ),
       ],
     ),
@@ -1665,7 +1667,7 @@ void _mostrarFotomaton(BuildContext context) {
                   Icon(Icons.camera_alt, color: const Color(0xFFD4AF37), size: 32),
                   const SizedBox(width: 12),
                   Text(
-                    'Fotomatón',
+    'Fotomatón',
                     style: GoogleFonts.allura(
                       fontSize: 36,
                       color: const Color(0xFFD4AF37),
@@ -1675,7 +1677,7 @@ void _mostrarFotomaton(BuildContext context) {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.',
+    'Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.',
                 style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 20),
@@ -1865,20 +1867,20 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
       'name': _name.text.trim().toUpperCase(),
       'email': _email.text.trim().toUpperCase(),
       'phone': _phone.text.trim().toUpperCase(),
-      'asistencia': _attendance,
-      'edad_principal': _age,
+      'asistencia': _attendance?.toUpperCase(),
+      'edad_principal': _age.toUpperCase(),
       'alergias_principal': _allergies.text.trim().isEmpty ? null : _allergies.text.trim().toUpperCase(),
-      'acompanante': _companion,
+      'acompanante': _companion?.toUpperCase(),
       'num_acompanantes': _companion == 'si' ? _companions.length : 0,
       'num_adultos': countAdult,
       'num_12_18': countTeen,
       'num_0_12': countKid,
-      'necesita_transporte': _needTransport,
-      'parada_autobus': _busStop, // 'santander' | 'torrelavega' | 'puente_viesgo'
-      'coche_propio': _ownCar,
-      'necesita_trona': _needTrona, // solo para menores de 12 años
+      'necesita_transporte': _needTransport?.toUpperCase(),
+      'parada_autobus': _busStop?.toUpperCase(), // 'SANTANDER' | 'TORRELAVEGA' | 'PUENTE_VIESGO'
+      'coche_propio': _ownCar?.toUpperCase(),
+      'necesita_trona': _needTrona?.toUpperCase(), // solo para menores de 12 años
       'canciones': _songs.text.trim().isEmpty ? null : _songs.text.trim().toUpperCase(),
-      'album_digital': _albumDigital,
+      'album_digital': _albumDigital?.toUpperCase(),
       'mensaje_novios': _message.text.trim().isEmpty ? null : _message.text.trim().toUpperCase(),
       'created_at': DateTime.now().toIso8601String(),
       'origen_form': 'flutter_web',
@@ -1886,11 +1888,11 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
     if (_companion == 'si' && _companions.isNotEmpty) {
       data['acompanantes_json'] = _companions.map((c) => {
         'nombre': c.name.text.trim().toUpperCase(),
-        'edad': c.age,
+        'edad': c.age.toUpperCase(),
         'alergias': c.allergies.text.trim().isEmpty ? null : c.allergies.text.trim().toUpperCase(),
-        'necesita_transporte': c.needTransport,
-        'parada_autobus': c.busStop, // 'santander' | 'torrelavega' | 'puente_viesgo'
-        'necesita_trona': c.needTrona, // solo para menores de 12 años
+        'necesita_transporte': c.needTransport?.toUpperCase() ?? '',
+        'parada_autobus': c.busStop?.toUpperCase() ?? '', // 'SANTANDER' | 'TORRELAVEGA' | 'PUENTE_VIESGO'
+        'necesita_trona': c.needTrona?.toUpperCase() ?? '', // solo para menores de 12 años
       }).toList();
     }
     return data;
@@ -1930,8 +1932,8 @@ class _PreinscriptionPageState extends State<PreinscriptionPage> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withOpacity(.35),
-                        Colors.black.withOpacity(.55),
+                      Colors.black.withOpacity(.35),
+                      Colors.black.withOpacity(.55),
                       ],
                     ),
                     border: Border.all(color: const Color(0xFFD4AF37)),
@@ -2221,7 +2223,7 @@ class _LogoCircle extends StatelessWidget {
   Widget build(BuildContext context) {
     const goldColor = Color(0xFFD4AF37);
     return RepaintBoundary(
-      child: Center(
+        child: Center(
         child: SizedBox(
           width: 280,
           height: 280,
@@ -2232,20 +2234,20 @@ class _LogoCircle extends StatelessWidget {
               height: 560,
               child: ColorFiltered(
                 colorFilter: ColorFilter.mode(goldColor, BlendMode.srcIn),
-                child: Image.asset(
+          child: Image.asset(
                   'assets/images/logoNuevo2.png',
                   width: 560,
                   height: 560,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  filterQuality: FilterQuality.high,
-                  errorBuilder: (_, __, ___) => Text(
-                    'L&D',
-                    style: GoogleFonts.allura(
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => Text(
+              'L&D',
+              style: GoogleFonts.allura(
                       fontSize: 252,
                       color: goldColor,
-                      fontWeight: FontWeight.w600,
-                      shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                fontWeight: FontWeight.w600,
+                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
                     ),
                   ),
                 ),
@@ -2324,40 +2326,40 @@ class _EventDetailsSection extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: LayoutBuilder(
         builder: (context, c) {
-          final width = c.maxWidth;
-          final cross = width >= 800 ? 3 : 1;
-          final children = <Widget>[
-            detailCard(
-              emoji: '⛪',
-              title: 'Ceremonia',
-              imageAsset: 'assets/images/santuario.jpg',
-              lines: const ['Convento de San Francisco de El Soto', 'Soto‑Iruz – 12:30h'],
+        final width = c.maxWidth;
+        final cross = width >= 800 ? 3 : 1;
+        final children = <Widget>[
+          detailCard(
+            emoji: '⛪',
+            title: 'Ceremonia',
+            imageAsset: 'assets/images/santuario.jpg',
+            lines: const ['Convento de San Francisco de El Soto', 'Soto‑Iruz – 12:30h'],
               icon: Icons.church,
-            ),
-            detailCard(
-              emoji: '🥂',
-              title: 'Celebración',
-              imageAsset: 'assets/images/labranza.jpg',
-              lines: const ['Finca La Real Labranza de Villasevil', '14:00h'],
-            ),
-            detailCard(
-              emoji: '📅',
-              title: 'Fecha',
-              lines: const ['Sábado, 25 de Abril de 2026'],
-            ),
-          ];
-          final mainExtent = cross == 3 ? 200.0 : (cross == 2 ? 210.0 : 220.0);
-          return GridView.custom(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cross,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              mainAxisExtent: mainExtent,
-            ),
-            childrenDelegate: SliverChildListDelegate(children),
-          );
+          ),
+          detailCard(
+            emoji: '🥂',
+            title: 'Celebración',
+            imageAsset: 'assets/images/labranza.jpg',
+            lines: const ['Finca La Real Labranza de Villasevil', '14:00h'],
+          ),
+          detailCard(
+            emoji: '📅',
+            title: 'Fecha',
+            lines: const ['Sábado, 25 de Abril de 2026'],
+          ),
+        ];
+        final mainExtent = cross == 3 ? 200.0 : (cross == 2 ? 210.0 : 220.0);
+        return GridView.custom(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cross,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: mainExtent,
+          ),
+          childrenDelegate: SliverChildListDelegate(children),
+        );
         },
       ),
     );
@@ -2468,10 +2470,10 @@ class _RadioGroup extends StatelessWidget {
         color: gold,
         width: selected ? 2.0 : 1.5,
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      shape: const StadiumBorder(),
-      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-    );
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        );
 
     return Wrap(
       spacing: 12,
@@ -2618,13 +2620,13 @@ String _inferMime(String? ext) {
 }
 
 Future<void> _uploadViaRest(BuildContext context) async {
-  final result = await FilePicker.platform.pickFiles(
-    allowMultiple: true,
-    type: FileType.custom,
-    allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
-    withData: true,
-  );
-  if (result == null || result.files.isEmpty) {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('No seleccionaste archivos.')),
     );
@@ -2636,10 +2638,10 @@ Future<void> _uploadViaRest(BuildContext context) async {
         content: Text('Backend no configurado. Firebase no está inicializado.'),
       ),
     );
-    return;
-  }
+      return;
+    }
 
-  final scaffold = ScaffoldMessenger.of(context);
+    final scaffold = ScaffoldMessenger.of(context);
   scaffold.showSnackBar(
     SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')),
   );
@@ -2650,15 +2652,15 @@ Future<void> _uploadViaRest(BuildContext context) async {
   int successCount = 0;
   int failCount = 0;
 
-  for (final file in result.files) {
+    for (final file in result.files) {
     final bytes = file.bytes;
-    if (bytes == null) {
+        if (bytes == null) {
       failCount++;
       scaffold.showSnackBar(
         SnackBar(content: Text('No pude leer datos de ${file.name}.')),
       );
-      continue;
-    }
+          continue;
+        }
     
     try {
       final fileName = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
@@ -2680,17 +2682,17 @@ Future<void> _uploadViaRest(BuildContext context) async {
       });
       
       successCount++;
-    } catch (e) {
+      } catch (e) {
       failCount++;
       scaffold.showSnackBar(
         SnackBar(
           content: Text('Error subiendo ${file.name}: $e'),
         ),
       );
+      }
     }
-  }
 
-  scaffold.clearSnackBars();
+    scaffold.clearSnackBars();
   if (successCount > 0) {
     scaffold.showSnackBar(
       SnackBar(
@@ -2722,21 +2724,21 @@ class _UploadPageState extends State<UploadPage> {
   int _totalFiles = 0;
 
   Future<void> _handleUpload() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
-      withData: true,
-    );
+  final result = await FilePicker.platform.pickFiles(
+    allowMultiple: true,
+    type: FileType.custom,
+    allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
+    withData: true,
+  );
     
-    if (result == null || result.files.isEmpty) {
+  if (result == null || result.files.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No seleccionaste archivos.')),
         );
       }
-      return;
-    }
+    return;
+  }
     
     if (!_firebaseReady) {
       if (mounted) {
@@ -2746,8 +2748,8 @@ class _UploadPageState extends State<UploadPage> {
           ),
         );
       }
-      return;
-    }
+    return;
+  }
 
     setState(() {
       _uploading = true;
@@ -2755,20 +2757,20 @@ class _UploadPageState extends State<UploadPage> {
       _totalFiles = result.files.length;
     });
 
-    final scaffold = ScaffoldMessenger.of(context);
+  final scaffold = ScaffoldMessenger.of(context);
     scaffold.showSnackBar(
       SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')),
     );
 
     final storage = FirebaseStorage.instance;
     final firestore = FirebaseFirestore.instance;
-    final today = DateTime.now().toIso8601String().substring(0, 10);
+  final today = DateTime.now().toIso8601String().substring(0, 10);
     int successCount = 0;
     int failCount = 0;
 
-    for (final file in result.files) {
-      final bytes = file.bytes;
-      if (bytes == null) {
+  for (final file in result.files) {
+    final bytes = file.bytes;
+    if (bytes == null) {
         failCount++;
         if (mounted) {
           scaffold.showSnackBar(
@@ -2776,8 +2778,8 @@ class _UploadPageState extends State<UploadPage> {
           );
         }
         setState(() => _uploadedCount++);
-        continue;
-      }
+      continue;
+    }
       
       try {
         final fileName = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
@@ -3234,6 +3236,163 @@ class _LoginDialogState extends State<_LoginDialog> {
   }
 }
 
+// Función para exportar datos a Excel
+Future<void> _exportToExcel(BuildContext context) async {
+  try {
+    // Mostrar indicador de carga
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generando Excel...'), duration: Duration(seconds: 2)),
+      );
+    }
+
+    final firestore = FirebaseFirestore.instance;
+    final querySnapshot = await firestore.collection(_rsvpCollection).get();
+
+    // Crear archivo Excel
+    final excel = excel_lib.Excel.createExcel();
+    excel.delete('Sheet1');
+    final sheet = excel['Confirmaciones'];
+
+    // Encabezados
+    final headers = [
+      'ID',
+      'Tipo',
+      'Nombre',
+      'Email',
+      'Teléfono',
+      'Asistencia',
+      'Edad',
+      'Alergias',
+      'Usa Autobús',
+      'Parada Autobús',
+      'Necesita Trona',
+      'Canciones Favoritas',
+      'Álbum Digital',
+      'Mensaje Novios',
+      'Fecha Creación',
+    ];
+    
+    for (int i = 0; i < headers.length; i++) {
+      sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).value = excel_lib.TextCellValue(headers[i]);
+    }
+
+    int rowIndex = 1;
+
+    // Procesar cada documento
+    for (final doc in querySnapshot.docs) {
+      final data = doc.data();
+      final docId = doc.id;
+      final createdAt = data['created_at']?.toString() ?? '';
+
+      // Fila para el invitado principal
+      final asistenciaStr = (data['asistencia']?.toString().toUpperCase() ?? '');
+      final principalRow = [
+        docId,
+        'INVITADO PRINCIPAL',
+        data['name']?.toString() ?? '',
+        data['email']?.toString() ?? '',
+        data['phone']?.toString() ?? '',
+        asistenciaStr == 'SI' ? 'SÍ' : 'NO',
+        _formatAgeForExcel(data['edad_principal']),
+        data['alergias_principal']?.toString() ?? '',
+        (data['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO',
+        _formatBusStopForExcel(data['parada_autobus']),
+        (data['necesita_trona']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO',
+        data['canciones']?.toString() ?? '',
+        (data['album_digital']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO',
+        data['mensaje_novios']?.toString() ?? '',
+        createdAt,
+      ];
+
+      for (int i = 0; i < principalRow.length; i++) {
+        sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex)).value = excel_lib.TextCellValue(principalRow[i].toString());
+      }
+      rowIndex++;
+
+      // Filas para acompañantes
+      if (data['acompanantes_json'] != null) {
+        final companions = data['acompanantes_json'] as List;
+        for (final companion in companions) {
+          final companionMap = companion as Map<String, dynamic>;
+          final companionRow = [
+            docId,
+            'ACOMPAÑANTE',
+            companionMap['nombre']?.toString() ?? '',
+            '', // Email vacío para acompañantes
+            '', // Teléfono vacío para acompañantes
+            asistenciaStr == 'SI' ? 'SÍ' : 'NO',
+            _formatAgeForExcel(companionMap['edad']),
+            companionMap['alergias']?.toString() ?? '',
+            (companionMap['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO',
+            _formatBusStopForExcel(companionMap['parada_autobus']),
+            (companionMap['necesita_trona']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO',
+            '', // Canciones vacío para acompañantes
+            '', // Álbum digital vacío para acompañantes
+            '', // Mensaje vacío para acompañantes
+            createdAt,
+          ];
+
+          for (int i = 0; i < companionRow.length; i++) {
+            sheet.cell(excel_lib.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex)).value = excel_lib.TextCellValue(companionRow[i].toString());
+          }
+          rowIndex++;
+        }
+      }
+    }
+
+    // Convertir a bytes
+    final excelBytes = excel.save();
+    if (excelBytes == null) {
+      throw Exception('Error al generar el archivo Excel');
+    }
+
+    // Descargar archivo
+    final blob = html.Blob([excelBytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', 'confirmaciones_boda_${DateTime.now().toString().split(' ')[0]}.xlsx')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Excel exportado correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
+String _formatAgeForExcel(dynamic value) {
+  if (value == null || value.toString().isEmpty) return '';
+  final str = value.toString().toUpperCase();
+  if (str == 'ADULTO' || str == 'ADULTO (+18)') return 'ADULTO (+18)';
+  if (str == '12-18' || str == '12-18 AÑOS') return '12-18 AÑOS';
+  if (str == '0-12' || str == 'MENOR 12 AÑOS') return 'MENOR 12 AÑOS';
+  return str;
+}
+
+String _formatBusStopForExcel(dynamic value) {
+  if (value == null || value.toString().isEmpty) return '';
+  final str = value.toString().toUpperCase();
+  if (str == 'SANTANDER') return 'SANTANDER';
+  if (str == 'TORRELAVEGA') return 'TORRELAVEGA';
+  if (str == 'PUENTE_VIESGO' || str == 'PUENTE VIESGO') return 'PUENTE VIESGO';
+  return str;
+}
+
 // Página de administración
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -3281,6 +3440,11 @@ class _AdminPageState extends State<AdminPage> {
         ),
         backgroundColor: Colors.black,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Color(0xFFD4AF37)),
+            onPressed: () => _exportToExcel(context),
+            tooltip: 'Exportar a Excel',
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Color(0xFFD4AF37)),
             onPressed: () {
@@ -3428,8 +3592,8 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                   children: [
                     Text('Email: ${data['email'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
                     Text('Teléfono: ${data['phone'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
-                    Text('Asistencia: ${data['asistencia'] == 'si' ? 'Sí' : 'No'}', style: const TextStyle(color: Colors.white70)),
-                    if (data['asistencia'] == 'si') ...[
+                    Text('Asistencia: ${(data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO'}', style: const TextStyle(color: Colors.white70)),
+                    if ((data['asistencia']?.toString().toUpperCase() ?? '') == 'SI') ...[
                       Text('Adultos: ${data['num_adultos'] ?? 0}', style: const TextStyle(color: Colors.white70)),
                       Text('12-18: ${data['num_12_18'] ?? 0}', style: const TextStyle(color: Colors.white70)),
                       Text('0-12: ${data['num_0_12'] ?? 0}', style: const TextStyle(color: Colors.white70)),
@@ -3437,8 +3601,8 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                   ],
                 ),
                 leading: Icon(
-                  data['asistencia'] == 'si' ? Icons.check_circle : Icons.cancel,
-                  color: data['asistencia'] == 'si' ? Colors.green : Colors.red,
+                  (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? Icons.check_circle : Icons.cancel,
+                  color: (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? Colors.green : Colors.red,
                   size: 28,
                 ),
                 trailing: Row(
@@ -3563,13 +3727,27 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                         _buildDetailRow('Nombre', data['name'] ?? 'N/A'),
                         _buildDetailRow('Email', data['email'] ?? 'N/A'),
                         _buildDetailRow('Teléfono', data['phone'] ?? 'N/A'),
-                        _buildDetailRow('Asistencia', data['asistencia'] == 'si' ? 'Sí' : 'No'),
+                        _buildDetailRow('Asistencia', (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO'),
                       ]),
-                      if (data['asistencia'] == 'si') ...[
+                      if ((data['asistencia']?.toString().toUpperCase() ?? '') == 'SI') ...[
+                        const SizedBox(height: 16),
+                        _buildDetailSection('Información del Invitado', [
+                          _buildDetailRow('Edad', _formatAge(data['edad_principal'])),
+                          if (data['alergias_principal'] != null && data['alergias_principal'].toString().isNotEmpty)
+                            _buildDetailRow('Alergias', data['alergias_principal'] ?? 'Ninguna'),
+                          if (data['edad_principal'] == '0-12')
+                            _buildDetailRow('¿Necesita trona?', _formatYesNo(data['necesita_trona'])),
+                        ]),
                         const SizedBox(height: 16),
                         _buildDetailSection('Acompañantes', [
-                          _buildDetailRow('Viene acompañado', data['companion'] == 'si' ? 'Sí' : 'No'),
-                          if (data['companion'] == 'si' && companionsData.isNotEmpty) ...[
+                          _buildDetailRow('Viene acompañado', (data['acompanante'] ?? data['companion']) == 'si' ? 'Sí' : 'No'),
+                          if (data['num_adultos'] != null || data['num_12_18'] != null || data['num_0_12'] != null) ...[
+                            const SizedBox(height: 8),
+                            _buildDetailRow('Total adultos', '${data['num_adultos'] ?? 0}', indent: 0),
+                            _buildDetailRow('Total 12-18 años', '${data['num_12_18'] ?? 0}', indent: 0),
+                            _buildDetailRow('Total menores 12 años', '${data['num_0_12'] ?? 0}', indent: 0),
+                          ],
+                          if ((data['acompanante'] ?? data['companion']) == 'si' && companionsData.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             ...companionsData.asMap().entries.map((entry) {
                               final index = entry.key;
@@ -3594,9 +3772,15 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                     ),
                                     const SizedBox(height: 8),
                                     _buildDetailRow('Nombre', companion['nombre'] ?? 'N/A', indent: 0),
-                                    _buildDetailRow('Edad', companion['edad'] ?? 'N/A', indent: 0),
+                                    _buildDetailRow('Edad', _formatAge(companion['edad']), indent: 0),
                                     if (companion['alergias'] != null && companion['alergias'].toString().isNotEmpty)
                                       _buildDetailRow('Alergias', companion['alergias'] ?? 'Ninguna', indent: 0),
+                                    if (companion['necesita_transporte'] != null)
+                                      _buildDetailRow('¿Usa autobús?', _formatYesNo(companion['necesita_transporte']), indent: 0),
+                                    if ((companion['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' && companion['parada_autobus'] != null)
+                                      _buildDetailRow('Parada autobús', _formatBusStop(companion['parada_autobus']), indent: 0),
+                                    if ((companion['edad']?.toString().toUpperCase() ?? '') == '0-12' && companion['necesita_trona'] != null)
+                                      _buildDetailRow('¿Necesita trona?', _formatYesNo(companion['necesita_trona']), indent: 0),
                                   ],
                                 ),
                               );
@@ -3605,8 +3789,9 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                         ]),
                         const SizedBox(height: 16),
                         _buildDetailSection('Transporte', [
-                          _buildDetailRow('¿Necesita transporte?', _formatYesNo(data['necesita_transporte'])),
-                          _buildDetailRow('¿Tiene coche propio?', _formatYesNo(data['coche_propio'])),
+                          _buildDetailRow('¿Usa el autobús?', _formatYesNo(data['necesita_transporte'])),
+                          if ((data['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' && data['parada_autobus'] != null)
+                            _buildDetailRow('Parada autobús', _formatBusStop(data['parada_autobus'])),
                         ]),
                         const SizedBox(height: 16),
                         _buildDetailSection('Información Adicional', [
@@ -3729,11 +3914,29 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
   }
   
   String _formatYesNo(dynamic value) {
-    if (value == null || value.toString().isEmpty) return 'No especificado';
-    final str = value.toString().toLowerCase();
-    if (str == 'si' || str == 'sí' || str == 'yes') return 'Sí';
-    if (str == 'no') return 'No';
-    return value.toString();
+    if (value == null || value.toString().isEmpty) return 'NO ESPECIFICADO';
+    final str = value.toString().toUpperCase();
+    if (str == 'SI' || str == 'SÍ' || str == 'YES') return 'SÍ';
+    if (str == 'NO') return 'NO';
+    return str;
+  }
+  
+  String _formatAge(dynamic value) {
+    if (value == null || value.toString().isEmpty) return 'N/A';
+    final str = value.toString().toUpperCase();
+    if (str == 'ADULTO' || str == 'ADULTO (+18)') return 'ADULTO (+18)';
+    if (str == '12-18' || str == '12-18 AÑOS') return '12-18 AÑOS';
+    if (str == '0-12' || str == 'MENOR 12 AÑOS') return 'MENOR 12 AÑOS';
+    return str;
+  }
+  
+  String _formatBusStop(dynamic value) {
+    if (value == null || value.toString().isEmpty) return 'N/A';
+    final str = value.toString().toUpperCase();
+    if (str == 'SANTANDER') return 'SANTANDER';
+    if (str == 'TORRELAVEGA') return 'TORRELAVEGA';
+    if (str == 'PUENTE_VIESGO' || str == 'PUENTE VIESGO') return 'PUENTE VIESGO';
+    return str;
   }
   
   Future<void> _editRsvp(BuildContext context, DocumentSnapshot doc) async {
@@ -3761,14 +3964,11 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     String asistencia = (data['asistencia']?.toString().trim().toLowerCase() ?? 'no');
     if (asistencia != 'si' && asistencia != 'no') asistencia = 'no';
     
-    String companion = (data['companion']?.toString().trim().toLowerCase() ?? 'no');
+    String companion = ((data['acompanante'] ?? data['companion'])?.toString().trim().toLowerCase() ?? 'no');
     if (companion != 'si' && companion != 'no') companion = 'no';
     
     String? needTransportNormalized = normalizeYesNo(data['necesita_transporte']?.toString());
     String needTransport = needTransportNormalized ?? '';
-    
-    String? ownCarNormalized = normalizeYesNo(data['coche_propio']?.toString());
-    String ownCar = ownCarNormalized ?? '';
     
     String? albumDigitalNormalized = normalizeYesNo(data['album_digital']?.toString());
     String albumDigital = albumDigitalNormalized ?? '';
@@ -3790,6 +3990,9 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
         'name': TextEditingController(text: c['nombre']?.toString().trim() ?? ''),
         'age': age,
         'allergies': TextEditingController(text: c['alergias']?.toString().trim() ?? ''),
+        'needTransport': c['necesita_transporte']?.toString(),
+        'busStop': c['parada_autobus']?.toString(),
+        'needTrona': c['necesita_trona']?.toString(),
       };
     }).toList();
     
@@ -4136,32 +4339,6 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             ],
                             onChanged: (value) => setState(() => needTransport = value ?? ''),
                           ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            value: ownCar.isEmpty ? null : (ownCar == 'si' || ownCar == 'no' ? ownCar : null),
-                            decoration: InputDecoration(
-                              labelText: '¿Tiene coche propio?',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            dropdownColor: Colors.white,
-                            style: const TextStyle(color: Colors.black),
-                            items: const [
-                              DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
-                              DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
-                              DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
-                            ],
-                            onChanged: (value) => setState(() => ownCar = value ?? ''),
-                          ),
                           const SizedBox(height: 24),
                         ],
                         
@@ -4270,10 +4447,16 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               acompanantesJson = companionControllers.map((c) {
                                 final nameCtrl = c['name'] as TextEditingController;
                                 final allergiesCtrl = c['allergies'] as TextEditingController;
+                                final needTransport = c['needTransport']?.toString() ?? '';
+                                final busStop = c['busStop']?.toString() ?? '';
+                                final needTrona = c['needTrona']?.toString() ?? '';
                                 return {
                                   'nombre': nameCtrl.text.trim().toUpperCase(),
-                                  'edad': c['age'] as String,
+                                  'edad': (c['age'] as String).toUpperCase(),
                                   'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim().toUpperCase(),
+                                  'necesita_transporte': needTransport.isEmpty ? null : needTransport.toUpperCase(),
+                                  'parada_autobus': busStop.isEmpty ? null : busStop.toUpperCase(),
+                                  'necesita_trona': needTrona.isEmpty ? null : needTrona.toUpperCase(),
                                 };
                               }).toList();
                             }
@@ -4283,16 +4466,15 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               'name': nameController.text.trim().toUpperCase(),
                               'email': emailController.text.trim().toUpperCase(),
                               'phone': phoneController.text.trim().toUpperCase(),
-                              'asistencia': asistencia,
-                              'companion': companion,
+                              'asistencia': asistencia.toUpperCase(),
+                              'companion': companion.toUpperCase(),
                               'num_acompanantes': companion == 'si' ? companionControllers.length : 0,
                               'num_adultos': countAdult,
                               'num_12_18': countTeen,
                               'num_0_12': countKid,
-                              'necesita_transporte': needTransport.isEmpty ? null : needTransport,
-                              'coche_propio': ownCar.isEmpty ? null : ownCar,
+                              'necesita_transporte': needTransport.isEmpty ? null : needTransport.toUpperCase(),
                               'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim().toUpperCase(),
-                              'album_digital': albumDigital.isEmpty ? null : albumDigital,
+                              'album_digital': albumDigital.isEmpty ? null : albumDigital.toUpperCase(),
                               'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim().toUpperCase(),
                               'acompanantes_json': acompanantesJson,
                             });

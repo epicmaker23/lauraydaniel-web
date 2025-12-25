@@ -21,6 +21,7 @@ dependencies:
   file_picker: ^8.0.3
   http: ^1.2.2
   url_strategy: ^0.3.0
+  excel: ^4.0.3
 
 dev_dependencies:
   flutter_test:
