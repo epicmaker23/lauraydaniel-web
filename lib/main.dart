@@ -128,7 +128,6 @@ Future<void> main() async {
     );
     _firebaseReady = true;
   } catch (e) {
-    debugPrint('Error inicializando Firebase: $e');
   }
   runApp(const BodaApp());
 }
@@ -287,7 +286,7 @@ class _HomeContent extends StatelessWidget {
                 ),
                 _InfoCard(
                   icon: Icons.photo_camera,
-                  title: 'Subir Fotos',
+                  title: 'Fotos / Videos',
                   subtitle: 'Álbum colaborativo',
                   detail: 'Comparte tus momentos',
                   onTap: () => Navigator.of(context).pushNamed('/galeria'),
@@ -2718,69 +2717,264 @@ class UploadPage extends StatefulWidget {
   State<UploadPage> createState() => _UploadPageState();
 }
 
+class _FileUploadProgress {
+  final String fileName;
+  final int fileSize;
+  double progress;
+  int bytesTransferred;
+  String? status;
+  String? timeRemaining;
+  DateTime? startTime;
+  bool isComplete;
+  bool hasError;
+  String? errorMessage;
+
+  _FileUploadProgress({
+    required this.fileName,
+    required this.fileSize,
+    this.progress = 0.0,
+    this.bytesTransferred = 0,
+    this.status,
+    this.timeRemaining,
+    this.startTime,
+    this.isComplete = false,
+    this.hasError = false,
+    this.errorMessage,
+  });
+}
+
 class _UploadPageState extends State<UploadPage> {
   bool _uploading = false;
-  int _uploadedCount = 0;
-  int _totalFiles = 0;
+  final Map<String, _FileUploadProgress> _uploadProgress = {};
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String _formatTime(Duration duration) {
+    if (duration.inSeconds < 60) {
+      return '${duration.inSeconds}s';
+    }
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes}m ${seconds}s';
+  }
 
   Future<void> _handleUpload() async {
-  final result = await FilePicker.platform.pickFiles(
-    allowMultiple: true,
-    type: FileType.custom,
-    allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'mp4', 'mov', 'avi', 'mkv'],
-    withData: true,
-  );
-    
-  if (result == null || result.files.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No seleccionaste archivos.')),
+    print('_handleUpload: Iniciando selección de archivos...');
+    try {
+      // En Flutter web, usar input HTML directamente es más confiable
+      final completer = Completer<List<html.File>>();
+      final input = html.FileUploadInputElement()
+        ..accept = '.jpg,.jpeg,.png,.webp,.heic,.heif,.mp4,.mov,.avi,.mkv'
+        ..multiple = true;
+      
+      input.onChange.listen((e) {
+        final files = input.files;
+        if (files != null && files.isNotEmpty) {
+          completer.complete(files);
+        } else {
+          completer.complete([]);
+        }
+        input.remove();
+      });
+      
+      input.click();
+      
+      print('_handleUpload: Esperando selección de archivos...');
+      final htmlFiles = await completer.future.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          input.remove();
+          return <html.File>[];
+        },
+      );
+      
+      if (htmlFiles.isEmpty) {
+        print('_handleUpload: No se seleccionaron archivos');
+        return;
+      }
+      
+      print('_handleUpload: Archivos seleccionados: ${htmlFiles.length}');
+
+      // Verificar Firebase ANTES de establecer el estado de subida
+      if (!_firebaseReady) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Backend no configurado. Firebase no está inicializado.'),
+            ),
+          );
+        }
+        return;
+      }
+      
+      // Inicializar el estado de subida INMEDIATAMENTE para que el usuario vea el progreso
+      if (!mounted) return;
+      
+      final progressMap = <String, _FileUploadProgress>{};
+      
+      // Inicializar progreso para TODOS los archivos seleccionados usando htmlFiles
+      for (final htmlFile in htmlFiles) {
+        progressMap[htmlFile.name] = _FileUploadProgress(
+          fileName: htmlFile.name,
+          fileSize: htmlFile.size,
+          status: 'Leyendo...',
         );
       }
-    return;
-  }
-    
-    if (!_firebaseReady) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Backend no configurado. Firebase no está inicializado.'),
-          ),
-        );
+      
+      print('_handleUpload: Estableciendo estado de subida...');
+      setState(() {
+        _uploading = true;
+        _uploadProgress.clear();
+        _uploadProgress.addAll(progressMap);
+      });
+      print('_handleUpload: Estado establecido. _uploading: $_uploading, archivos: ${_uploadProgress.length}');
+      
+      // Pequeño delay para asegurar que el setState se complete y la UI se actualice
+      await Future.delayed(const Duration(milliseconds: 50));
+      
+      if (!mounted) return;
+      
+      // Leer los archivos HTML y convertirlos a bytes en paralelo
+      final validFiles = <PlatformFile>[];
+      
+      // Leer todos los archivos en paralelo para mayor velocidad
+      final readFutures = htmlFiles.map((htmlFile) async {
+        try {
+          // Leer el archivo usando FileReader
+          final reader = html.FileReader();
+          final completer = Completer<Uint8List>();
+          
+          reader.onLoadEnd.listen((e) {
+            final result = reader.result;
+            if (result is Uint8List) {
+              completer.complete(result);
+            } else {
+              completer.completeError('No se pudo leer el archivo');
+            }
+          });
+          
+          reader.onError.listen((e) {
+            completer.completeError('Error al leer el archivo');
+          });
+          
+          reader.readAsArrayBuffer(htmlFile);
+          
+          final bytes = await completer.future;
+          
+          if (mounted) {
+            setState(() {
+              _uploadProgress[htmlFile.name] = _FileUploadProgress(
+                fileName: htmlFile.name,
+                fileSize: bytes.length,
+                status: 'Pendiente',
+              );
+            });
+          }
+          
+          return PlatformFile(
+            name: htmlFile.name,
+            size: bytes.length,
+            bytes: bytes,
+            path: null,
+          );
+        } catch (e) {
+          print('_handleUpload: Error al leer archivo ${htmlFile.name}: $e');
+          if (mounted) {
+            setState(() {
+              _uploadProgress[htmlFile.name] = _FileUploadProgress(
+                fileName: htmlFile.name,
+                fileSize: htmlFile.size,
+                status: 'Error',
+                hasError: true,
+                errorMessage: 'Error al leer el archivo: $e',
+              );
+            });
+          }
+          return null;
+        }
+      }).toList();
+      
+      // Esperar a que todos los archivos se lean
+      final results = await Future.wait(readFutures);
+      validFiles.addAll(results.whereType<PlatformFile>());
+      
+      // Si no hay archivos válidos, mostrar error pero mantener el modal visible
+      if (validFiles.isEmpty) {
+        // Esperar un momento para que el usuario vea el error, luego cerrar
+        await Future.delayed(const Duration(seconds: 3));
+        
+        if (mounted) {
+          setState(() => _uploading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Los archivos seleccionados no pudieron ser leídos. Por favor, intenta con archivos más pequeños o menos archivos a la vez.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
       }
-    return;
-  }
+      
+      if (!mounted) return;
+      
+      // Actualizar el estado de los archivos válidos a "Pendiente"
+      for (final file in validFiles) {
+        if (mounted) {
+          setState(() {
+            _uploadProgress[file.name] = _FileUploadProgress(
+              fileName: file.name,
+              fileSize: file.bytes!.length,
+              status: 'Pendiente',
+            );
+          });
+        }
+      }
 
-    setState(() {
-      _uploading = true;
-      _uploadedCount = 0;
-      _totalFiles = result.files.length;
-    });
+      final scaffold = ScaffoldMessenger.of(context);
+      final storage = FirebaseStorage.instance;
+      final firestore = FirebaseFirestore.instance;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      int successCount = 0;
+      int failCount = 0;
 
-  final scaffold = ScaffoldMessenger.of(context);
-    scaffold.showSnackBar(
-      SnackBar(content: Text('Subiendo ${result.files.length} archivo(s)...')),
-    );
-
-    final storage = FirebaseStorage.instance;
-    final firestore = FirebaseFirestore.instance;
-  final today = DateTime.now().toIso8601String().substring(0, 10);
-    int successCount = 0;
-    int failCount = 0;
-
-  for (final file in result.files) {
+      // Subir archivos en paralelo con seguimiento de progreso
+    final uploadFutures = validFiles.map((file) async {
     final bytes = file.bytes;
     if (bytes == null) {
         failCount++;
         if (mounted) {
-          scaffold.showSnackBar(
-            SnackBar(content: Text('No pude leer datos de ${file.name}.')),
-          );
+          setState(() {
+            _uploadProgress[file.name] = _FileUploadProgress(
+              fileName: file.name,
+              fileSize: 0,
+              hasError: true,
+              errorMessage: 'No se pudieron leer los datos del archivo',
+              status: 'Error',
+            );
+          });
         }
-        setState(() => _uploadedCount++);
-      continue;
-    }
-      
+        return;
+      }
+
+      final fileKey = file.name;
+      final startTime = DateTime.now();
+
+      if (mounted) {
+        setState(() {
+          _uploadProgress[fileKey] = _FileUploadProgress(
+            fileName: file.name,
+            fileSize: bytes.length,
+            startTime: startTime,
+            status: 'Subiendo...',
+          );
+        });
+      }
+
       try {
         final fileName = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
         final path = '$_galleryPath/$today/$fileName';
@@ -2790,7 +2984,43 @@ class _UploadPageState extends State<UploadPage> {
           contentType: _inferMime(file.extension),
         );
         
-        await ref.putData(bytes, metadata);
+        // Usar UploadTask para rastrear el progreso
+        final uploadTask = ref.putData(bytes, metadata);
+        
+        // Escuchar el progreso
+        uploadTask.snapshotEvents.listen((taskSnapshot) {
+          if (!mounted) return;
+          
+          final progress = taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
+          final bytesTransferred = taskSnapshot.bytesTransferred;
+          final elapsed = DateTime.now().difference(startTime);
+          
+          // Calcular velocidad y tiempo restante
+          String? timeRemaining;
+          if (progress > 0 && elapsed.inMilliseconds > 0) {
+            final speed = bytesTransferred / elapsed.inMilliseconds; // bytes por milisegundo
+            final remainingBytes = taskSnapshot.totalBytes - bytesTransferred;
+            final remainingMs = (remainingBytes / speed).round();
+            if (remainingMs > 0 && speed > 0) {
+              timeRemaining = _formatTime(Duration(milliseconds: remainingMs));
+            }
+          }
+
+          setState(() {
+            _uploadProgress[fileKey] = _FileUploadProgress(
+              fileName: file.name,
+              fileSize: taskSnapshot.totalBytes,
+              progress: progress,
+              bytesTransferred: bytesTransferred,
+              startTime: startTime,
+              status: 'Subiendo...',
+              timeRemaining: timeRemaining,
+            );
+          });
+        });
+
+        // Esperar a que termine la subida
+        final taskSnapshot = await uploadTask;
         final downloadUrl = await ref.getDownloadURL();
 
         await firestore.collection(_galleryCollection).add({
@@ -2799,46 +3029,75 @@ class _UploadPageState extends State<UploadPage> {
           'created_at': FieldValue.serverTimestamp(),
           'filename': file.name,
         });
-        
+
         successCount++;
+        
+        if (mounted) {
+          setState(() {
+            _uploadProgress[fileKey] = _FileUploadProgress(
+              fileName: file.name,
+              fileSize: taskSnapshot.totalBytes,
+              progress: 1.0,
+              bytesTransferred: taskSnapshot.totalBytes,
+              startTime: startTime,
+              status: 'Completado',
+              isComplete: true,
+            );
+          });
+        }
       } catch (e) {
         failCount++;
         if (mounted) {
-        scaffold.showSnackBar(
-          SnackBar(
-              content: Text('Error subiendo ${file.name}: $e'),
-          ),
-        );
+          setState(() {
+            _uploadProgress[fileKey] = _FileUploadProgress(
+              fileName: file.name,
+              fileSize: bytes.length,
+              hasError: true,
+              errorMessage: e.toString(),
+              status: 'Error',
+            );
+          });
+        }
       }
-    }
-      
-      if (mounted) {
-        setState(() => _uploadedCount++);
-    }
-  }
+    }).toList();
 
-    setState(() => _uploading = false);
+    // Esperar a que todos los archivos terminen
+    await Future.wait(uploadFutures);
 
     if (mounted) {
-  scaffold.clearSnackBars();
-      if (successCount > 0) {
-  scaffold.showSnackBar(
-          SnackBar(
-            content: Text('¡$successCount archivo(s) subido(s) correctamente!'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      if (failCount > 0) {
+      setState(() => _uploading = false);
+    }
+
+    if (mounted) {
+      // Mostrar resumen final
+      if (successCount > 0 || failCount > 0) {
         scaffold.showSnackBar(
           SnackBar(
-            content: Text('$failCount archivo(s) fallaron al subir.'),
-            backgroundColor: Colors.red,
+            content: Text(
+              failCount > 0
+                  ? 'Completado: $successCount exitoso(s), $failCount error(es)'
+                  : '¡$successCount archivo(s) subido(s) correctamente!',
+            ),
+            backgroundColor: failCount > 0 ? Colors.orange : Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
       }
+    }
+    } catch (e, stackTrace) {
+      if (mounted) {
+        setState(() => _uploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al procesar archivos: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      // Log del error para debugging
+      print('Error en _handleUpload: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
@@ -2912,7 +3171,7 @@ class _UploadPageState extends State<UploadPage> {
                             ),
                             Flexible(
                               child: Text(
-                                'Subir Fotos y Videos',
+                                'Subir Fotos / Videos',
                                 style: GoogleFonts.allura(
                                   fontSize: ResponsiveHelper.getFontSize(
                                     context,
@@ -2951,18 +3210,157 @@ class _UploadPageState extends State<UploadPage> {
                         ),
                         const SizedBox(height: 32),
                         if (_uploading) ...[
-                          Column(
-                            children: [
-                              CircularProgressIndicator(
-                                value: _totalFiles > 0 ? _uploadedCount / _totalFiles : null,
-                                color: gold,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Subiendo $_uploadedCount de $_totalFiles archivos...',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: gold.withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.cloud_upload, color: gold, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Subiendo archivos',
+                                      style: TextStyle(
+                                        color: gold,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                if (_uploadProgress.isEmpty) ...[
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: Column(
+                                        children: [
+                                          CircularProgressIndicator(color: Color(0xFFD4AF37)),
+                                          SizedBox(height: 12),
+                                          Text(
+                                            'Preparando archivos...',
+                                            style: TextStyle(color: Colors.white70, fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ] else ...[
+                                  ..._uploadProgress.values.map((progress) {
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[900]?.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: progress.hasError
+                                            ? Colors.red
+                                            : progress.isComplete
+                                                ? Colors.green
+                                                : gold.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                progress.fileName,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (progress.isComplete)
+                                              Icon(Icons.check_circle, color: Colors.green, size: 18)
+                                            else if (progress.hasError)
+                                              Icon(Icons.error, color: Colors.red, size: 18)
+                                            else
+                                              SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  value: progress.progress,
+                                                  color: gold,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: LinearProgressIndicator(
+                                            value: progress.progress,
+                                            minHeight: 6,
+                                            backgroundColor: Colors.grey[800],
+                                            valueColor: AlwaysStoppedAnimation<Color>(
+                                              progress.hasError
+                                                  ? Colors.red
+                                                  : progress.isComplete
+                                                      ? Colors.green
+                                                      : gold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              progress.hasError
+                                                  ? 'Error: ${progress.errorMessage ?? "Error desconocido"}'
+                                                  : progress.isComplete
+                                                      ? 'Completado'
+                                                      : progress.status ?? 'Subiendo...',
+                                              style: TextStyle(
+                                                color: progress.hasError
+                                                    ? Colors.red[300]
+                                                    : progress.isComplete
+                                                        ? Colors.green[300]
+                                                        : Colors.white70,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                            if (!progress.hasError && !progress.isComplete && progress.timeRemaining != null)
+                                              Text(
+                                                '${(progress.progress * 100).toStringAsFixed(0)}% • ${_formatBytes(progress.bytesTransferred)} / ${_formatBytes(progress.fileSize)} • ${progress.timeRemaining} restantes',
+                                                style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 11,
+                                                ),
+                                              )
+                                            else if (!progress.hasError)
+                                              Text(
+                                                '${_formatBytes(progress.fileSize)}',
+                                                style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                ],
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -3701,6 +4099,8 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                 ),
                 child: Row(
                   children: [
+                    Icon(Icons.person, color: gold, size: 32),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         'Detalles de la Confirmación',
@@ -3731,46 +4131,57 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                       ]),
                       if ((data['asistencia']?.toString().toUpperCase() ?? '') == 'SI') ...[
                         const SizedBox(height: 16),
-                        _buildDetailSection('Información del Invitado', [
+                        _buildDetailSection('Información del Invitado Principal', [
                           _buildDetailRow('Edad', _formatAge(data['edad_principal'])),
                           if (data['alergias_principal'] != null && data['alergias_principal'].toString().isNotEmpty)
                             _buildDetailRow('Alergias', data['alergias_principal'] ?? 'Ninguna'),
-                          if (data['edad_principal'] == '0-12')
+                          if ((data['edad_principal']?.toString().toUpperCase() ?? '') == '0-12' && data['necesita_trona'] != null)
                             _buildDetailRow('¿Necesita trona?', _formatYesNo(data['necesita_trona'])),
+                          if (data['necesita_transporte'] != null)
+                            _buildDetailRow('¿Usa el autobús?', _formatYesNo(data['necesita_transporte'])),
+                          if ((data['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' && data['parada_autobus'] != null)
+                            _buildDetailRow('Parada autobús', _formatBusStop(data['parada_autobus'])),
                         ]),
                         const SizedBox(height: 16),
                         _buildDetailSection('Acompañantes', [
-                          _buildDetailRow('Viene acompañado', (data['acompanante'] ?? data['companion']) == 'si' ? 'Sí' : 'No'),
+                          _buildDetailRow('Viene acompañado', ((data['acompanante'] ?? data['companion'])?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO'),
                           if (data['num_adultos'] != null || data['num_12_18'] != null || data['num_0_12'] != null) ...[
                             const SizedBox(height: 8),
                             _buildDetailRow('Total adultos', '${data['num_adultos'] ?? 0}', indent: 0),
                             _buildDetailRow('Total 12-18 años', '${data['num_12_18'] ?? 0}', indent: 0),
                             _buildDetailRow('Total menores 12 años', '${data['num_0_12'] ?? 0}', indent: 0),
                           ],
-                          if ((data['acompanante'] ?? data['companion']) == 'si' && companionsData.isNotEmpty) ...[
+                          if (((data['acompanante'] ?? data['companion'])?.toString().toUpperCase() ?? '') == 'SI' && companionsData.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             ...companionsData.asMap().entries.map((entry) {
                               final index = entry.key;
                               final companion = entry.value;
                               return Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[700],
-                                  borderRadius: BorderRadius.circular(6),
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: gold.withOpacity(0.3), width: 1),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      'Acompañante ${index + 1}',
-                                      style: TextStyle(
-                                        color: gold,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.person_outline, color: gold, size: 20),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Acompañante ${index + 1}',
+                                          style: TextStyle(
+                                            color: gold,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 12),
                                     _buildDetailRow('Nombre', companion['nombre'] ?? 'N/A', indent: 0),
                                     _buildDetailRow('Edad', _formatAge(companion['edad']), indent: 0),
                                     if (companion['alergias'] != null && companion['alergias'].toString().isNotEmpty)
@@ -3786,12 +4197,6 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               );
                             }),
                           ],
-                        ]),
-                        const SizedBox(height: 16),
-                        _buildDetailSection('Transporte', [
-                          _buildDetailRow('¿Usa el autobús?', _formatYesNo(data['necesita_transporte'])),
-                          if ((data['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' && data['parada_autobus'] != null)
-                            _buildDetailRow('Parada autobús', _formatBusStop(data['parada_autobus'])),
                         ]),
                         const SizedBox(height: 16),
                         _buildDetailSection('Información Adicional', [
@@ -3973,6 +4378,30 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     String? albumDigitalNormalized = normalizeYesNo(data['album_digital']?.toString());
     String albumDigital = albumDigitalNormalized ?? '';
     
+    // Edad del invitado principal
+    String edadPrincipal = (data['edad_principal']?.toString().trim().toLowerCase() ?? 'adulto');
+    if (edadPrincipal != 'adulto' && edadPrincipal != '12-18' && edadPrincipal != '0-12') {
+      edadPrincipal = 'adulto';
+    }
+    
+    // Alergias del invitado principal
+    final allergiesPrincipalController = TextEditingController(text: data['alergias_principal']?.toString().trim() ?? '');
+    
+    // Trona del invitado principal
+    String? needTronaPrincipalNormalized = normalizeYesNo(data['necesita_trona']?.toString());
+    String needTronaPrincipal = needTronaPrincipalNormalized ?? '';
+    
+    // Parada de autobús del invitado principal
+    String? busStopPrincipal = data['parada_autobus']?.toString().trim();
+    if (busStopPrincipal != null && busStopPrincipal.isNotEmpty) {
+      busStopPrincipal = busStopPrincipal.toLowerCase();
+      if (busStopPrincipal != 'santander' && busStopPrincipal != 'torrelavega' && busStopPrincipal != 'puente_viesgo') {
+        busStopPrincipal = null;
+      }
+    } else {
+      busStopPrincipal = null;
+    }
+    
     // Cargar acompañantes
     List<Map<String, dynamic>> companionsData = [];
     if (data['acompanantes_json'] != null) {
@@ -4017,6 +4446,8 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                   ),
                   child: Row(
                     children: [
+                      Icon(Icons.edit, color: gold, size: 32),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Editar Confirmación',
@@ -4099,6 +4530,91 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                         ),
                         const SizedBox(height: 24),
                         
+                        // Información del invitado principal
+                        if (asistencia == 'si') ...[
+                          _buildSectionTitle('Información del Invitado Principal'),
+                          DropdownButtonFormField<String>(
+                            value: edadPrincipal,
+                            decoration: InputDecoration(
+                              labelText: 'Edad',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(color: Colors.black),
+                            items: const [
+                              DropdownMenuItem(value: 'adulto', child: Text('Adulto', style: TextStyle(color: Colors.black))),
+                              DropdownMenuItem(value: '12-18', child: Text('12-18 años', style: TextStyle(color: Colors.black))),
+                              DropdownMenuItem(value: '0-12', child: Text('0-12 años', style: TextStyle(color: Colors.black))),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                edadPrincipal = value ?? 'adulto';
+                                if (edadPrincipal != '0-12') {
+                                  needTronaPrincipal = '';
+                                }
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: allergiesPrincipalController,
+                            decoration: InputDecoration(
+                              labelText: 'Alergias (opcional)',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: gold),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                          if (edadPrincipal == '0-12') ...[
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: needTronaPrincipal.isEmpty ? null : (needTronaPrincipal == 'si' || needTronaPrincipal == 'no' ? needTronaPrincipal : null),
+                              decoration: InputDecoration(
+                                labelText: '¿Necesita trona?',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: gold),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              dropdownColor: Colors.white,
+                              style: const TextStyle(color: Colors.black),
+                              items: const [
+                                DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
+                                DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
+                                DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
+                              ],
+                              onChanged: (value) => setState(() => needTronaPrincipal = value ?? ''),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                        ],
+                        
                         // Asistencia
                         _buildSectionTitle('Asistencia'),
                         SegmentedButton<String>(
@@ -4134,6 +4650,9 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                     'name': TextEditingController(),
                                     'age': 'adulto',
                                     'allergies': TextEditingController(),
+                                    'needTransport': null,
+                                    'busStop': null,
+                                    'needTrona': null,
                                   });
                                 }
                               });
@@ -4194,6 +4713,9 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                                 'name': TextEditingController(),
                                                 'age': 'adulto',
                                                 'allergies': TextEditingController(),
+                                                'needTransport': null,
+                                                'busStop': null,
+                                                'needTrona': null,
                                               });
                                             });
                                           }
@@ -4305,6 +4827,104 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                       ),
                                       style: const TextStyle(color: Colors.black),
                                     ),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: (controllers['needTransport']?.toString() ?? '').isEmpty 
+                                          ? null 
+                                          : ((controllers['needTransport']?.toString() == 'si' || controllers['needTransport']?.toString() == 'no') 
+                                              ? controllers['needTransport']?.toString() 
+                                              : null),
+                                      decoration: InputDecoration(
+                                        labelText: '¿Usará el autobús?',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: gold),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      dropdownColor: Colors.white,
+                                      style: const TextStyle(color: Colors.black),
+                                      items: const [
+                                        DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
+                                        DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
+                                        DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
+                                      ],
+                                      onChanged: (value) {
+                                        setState(() {
+                                          controllers['needTransport'] = value ?? '';
+                                          if (value == 'no') {
+                                            controllers['busStop'] = null;
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    if ((controllers['needTransport']?.toString() ?? '') == 'si') ...[
+                                      const SizedBox(height: 8),
+                                      DropdownButtonFormField<String>(
+                                        value: controllers['busStop']?.toString(),
+                                        decoration: InputDecoration(
+                                          labelText: 'Desde dónde cogerá el autobús?',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: gold),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        dropdownColor: Colors.white,
+                                        style: const TextStyle(color: Colors.black),
+                                        items: const [
+                                          DropdownMenuItem(value: null, child: Text('Seleccionar', style: TextStyle(color: Colors.black))),
+                                          DropdownMenuItem(value: 'santander', child: Text('Santander', style: TextStyle(color: Colors.black))),
+                                          DropdownMenuItem(value: 'torrelavega', child: Text('Torrelavega', style: TextStyle(color: Colors.black))),
+                                          DropdownMenuItem(value: 'puente_viesgo', child: Text('Puente Viesgo', style: TextStyle(color: Colors.black))),
+                                        ],
+                                        onChanged: (value) => setState(() => controllers['busStop'] = value),
+                                      ),
+                                    ],
+                                    if ((controllers['age'] as String) == '0-12') ...[
+                                      const SizedBox(height: 8),
+                                      DropdownButtonFormField<String>(
+                                        value: (controllers['needTrona']?.toString() ?? '').isEmpty 
+                                            ? null 
+                                            : ((controllers['needTrona']?.toString() == 'si' || controllers['needTrona']?.toString() == 'no') 
+                                                ? controllers['needTrona']?.toString() 
+                                                : null),
+                                        decoration: InputDecoration(
+                                          labelText: '¿Necesitará una trona?',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: gold),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        dropdownColor: Colors.white,
+                                        style: const TextStyle(color: Colors.black),
+                                        items: const [
+                                          DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
+                                          DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
+                                          DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
+                                        ],
+                                        onChanged: (value) => setState(() => controllers['needTrona'] = value ?? ''),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               );
@@ -4312,12 +4932,12 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                           ],
                           const SizedBox(height: 24),
                           
-                          // Transporte
-                          _buildSectionTitle('Transporte'),
+                          // Transporte del invitado principal
+                          _buildSectionTitle('Transporte del Invitado Principal'),
                           DropdownButtonFormField<String>(
                             value: needTransport.isEmpty ? null : (needTransport == 'si' || needTransport == 'no' ? needTransport : null),
                             decoration: InputDecoration(
-                              labelText: '¿Necesita transporte?',
+                              labelText: '¿Usa el autobús?',
                               filled: true,
                               fillColor: Colors.white,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -4337,8 +4957,44 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
                               DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
                             ],
-                            onChanged: (value) => setState(() => needTransport = value ?? ''),
+                            onChanged: (value) {
+                              setState(() {
+                                needTransport = value ?? '';
+                                if (needTransport == 'no') {
+                                  busStopPrincipal = null;
+                                }
+                              });
+                            },
                           ),
+                          if (needTransport == 'si') ...[
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: busStopPrincipal,
+                              decoration: InputDecoration(
+                                labelText: 'Desde dónde cogerá el autobús?',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: gold),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              dropdownColor: Colors.white,
+                              style: const TextStyle(color: Colors.black),
+                              items: const [
+                                DropdownMenuItem(value: null, child: Text('Seleccionar', style: TextStyle(color: Colors.black))),
+                                DropdownMenuItem(value: 'santander', child: Text('Santander', style: TextStyle(color: Colors.black))),
+                                DropdownMenuItem(value: 'torrelavega', child: Text('Torrelavega', style: TextStyle(color: Colors.black))),
+                                DropdownMenuItem(value: 'puente_viesgo', child: Text('Puente Viesgo', style: TextStyle(color: Colors.black))),
+                              ],
+                              onChanged: (value) => setState(() => busStopPrincipal = value),
+                            ),
+                          ],
                           const SizedBox(height: 24),
                         ],
                         
@@ -4430,7 +5086,7 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                       FilledButton(
                         onPressed: () async {
                           try {
-                            // Calcular conteos
+                            // Calcular conteos (solo acompañantes, el principal se suma después)
                             int countAdult = 0, countTeen = 0, countKid = 0;
                             if (companion == 'si' && companionControllers.isNotEmpty) {
                               for (final c in companionControllers) {
@@ -4461,18 +5117,29 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               }).toList();
                             }
                             
+                            // Calcular conteos incluyendo el invitado principal
+                            if (asistencia == 'si') {
+                              if (edadPrincipal == 'adulto') countAdult++;
+                              if (edadPrincipal == '12-18') countTeen++;
+                              if (edadPrincipal == '0-12') countKid++;
+                            }
+                            
                             // Actualizar documento
                             await doc.reference.update({
                               'name': nameController.text.trim().toUpperCase(),
                               'email': emailController.text.trim().toUpperCase(),
                               'phone': phoneController.text.trim().toUpperCase(),
                               'asistencia': asistencia.toUpperCase(),
+                              'edad_principal': edadPrincipal.toUpperCase(),
+                              'alergias_principal': allergiesPrincipalController.text.trim().isEmpty ? null : allergiesPrincipalController.text.trim().toUpperCase(),
+                              'necesita_trona': needTronaPrincipal.isEmpty ? null : needTronaPrincipal.toUpperCase(),
                               'companion': companion.toUpperCase(),
                               'num_acompanantes': companion == 'si' ? companionControllers.length : 0,
                               'num_adultos': countAdult,
                               'num_12_18': countTeen,
                               'num_0_12': countKid,
                               'necesita_transporte': needTransport.isEmpty ? null : needTransport.toUpperCase(),
+                              'parada_autobus': busStopPrincipal?.toUpperCase(),
                               'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim().toUpperCase(),
                               'album_digital': albumDigital.isEmpty ? null : albumDigital.toUpperCase(),
                               'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim().toUpperCase(),
@@ -4510,6 +5177,7 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     nameController.dispose();
     emailController.dispose();
     phoneController.dispose();
+    allergiesPrincipalController.dispose();
     songsController.dispose();
     messageController.dispose();
     for (final c in companionControllers) {
@@ -5161,8 +5829,6 @@ class _DeletePhotosTabState extends State<_DeletePhotosTab> {
             final ref = FirebaseStorage.instance.refFromURL(url);
             await ref.delete();
           } catch (e) {
-            // Si falla la eliminación de Storage, no es crítico
-            print('Error eliminando de Storage: $e');
           }
         }
         
