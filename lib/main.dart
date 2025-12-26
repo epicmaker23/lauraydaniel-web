@@ -1465,9 +1465,15 @@ class _RegalosDialogState extends State<_RegalosDialog> {
                           ? () {
                               Clipboard.setData(const ClipboardData(text: _iban));
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('IBAN copiado al portapapeles'),
-                                  duration: Duration(seconds: 2),
+                                SnackBar(
+                                  content: const Text(
+                                    'IBAN copiado al portapapeles',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                  ),
+                                  backgroundColor: Colors.green.shade600,
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 2),
+                                  elevation: 6,
                                 ),
                               );
                             }
@@ -4746,11 +4752,11 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     }
     
     // Controllers para datos principales
-    final nameController = TextEditingController(text: data['name'] ?? '');
-    final emailController = TextEditingController(text: data['email'] ?? '');
-    final phoneController = TextEditingController(text: data['phone'] ?? '');
-    final songsController = TextEditingController(text: data['canciones'] ?? '');
-    final messageController = TextEditingController(text: data['mensaje_novios'] ?? '');
+    final nameController = TextEditingController(text: (data['name'] ?? '').toString().toUpperCase());
+    final emailController = TextEditingController(text: (data['email'] ?? '').toString().toUpperCase());
+    final phoneController = TextEditingController(text: (data['phone'] ?? '').toString().toUpperCase());
+    final songsController = TextEditingController(text: (data['canciones'] ?? '').toString().toUpperCase());
+    final messageController = TextEditingController(text: (data['mensaje_novios'] ?? '').toString().toUpperCase());
     
     // Estado para asistencia y acompañante - normalizar valores
     String asistencia = (data['asistencia']?.toString().trim().toLowerCase() ?? 'no');
@@ -4772,7 +4778,7 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     }
     
     // Alergias del invitado principal
-    final allergiesPrincipalController = TextEditingController(text: data['alergias_principal']?.toString().trim() ?? '');
+    final allergiesPrincipalController = TextEditingController(text: (data['alergias_principal']?.toString().trim() ?? '').toUpperCase());
     
     // Trona del invitado principal
     String? needTronaPrincipalNormalized = normalizeYesNo(data['necesita_trona']?.toString());
@@ -4803,9 +4809,9 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
         age = 'adulto';
       }
       return {
-        'name': TextEditingController(text: c['nombre']?.toString().trim() ?? ''),
+        'name': TextEditingController(text: (c['nombre']?.toString().trim() ?? '').toUpperCase()),
         'age': age,
-        'allergies': TextEditingController(text: c['alergias']?.toString().trim() ?? ''),
+        'allergies': TextEditingController(text: (c['alergias']?.toString().trim() ?? '').toUpperCase()),
         'needTransport': c['necesita_transporte']?.toString(),
         'busStop': c['parada_autobus']?.toString(),
         'needTrona': c['necesita_trona']?.toString(),
@@ -4886,6 +4892,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                           field: TextField(
                             controller: nameController,
                             decoration: _buildInputDecoration('Nombre', isMobile: isMobileDialog),
+                            inputFormatters: [
+                              TextInputFormatter.withFunction((oldValue, newValue) {
+                                return TextEditingValue(
+                                  text: newValue.text.toUpperCase(),
+                                  selection: newValue.selection,
+                                );
+                              }),
+                            ],
                             style: TextStyle(
                               color: Colors.black87,
                               fontSize: isMobileDialog ? 15 : 16,
@@ -4901,6 +4915,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             controller: emailController,
                             decoration: _buildInputDecoration('Email'),
                             keyboardType: TextInputType.emailAddress,
+                            inputFormatters: [
+                              TextInputFormatter.withFunction((oldValue, newValue) {
+                                return TextEditingValue(
+                                  text: newValue.text.toUpperCase(),
+                                  selection: newValue.selection,
+                                );
+                              }),
+                            ],
                             style: TextStyle(
                               color: Colors.black87,
                               fontSize: isMobileDialog ? 15 : 16,
@@ -4916,6 +4938,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             controller: phoneController,
                             decoration: _buildInputDecoration('Teléfono'),
                             keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              TextInputFormatter.withFunction((oldValue, newValue) {
+                                return TextEditingValue(
+                                  text: newValue.text.toUpperCase(),
+                                  selection: newValue.selection,
+                                );
+                              }),
+                            ],
                             style: TextStyle(
                               color: Colors.black87,
                               fontSize: isMobileDialog ? 15 : 16,
@@ -4944,17 +4974,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               items: const [
                                 DropdownMenuItem(
                                   value: 'adulto',
-                                  child: Text('Adulto', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  child: Text('ADULTO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                 ),
                                 DropdownMenuItem(
                                   value: '12-18',
-                                  child: Text('12-18 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  child: Text('12-18 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                 ),
                                 DropdownMenuItem(
                                   value: '0-12',
-                                  child: Text('0-12 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  child: Text('0-12 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                 ),
                               ],
+                              selectedItemBuilder: (BuildContext context) {
+                                return const [
+                                  Text('ADULTO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                  Text('12-18 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                  Text('0-12 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                ];
+                              },
                               onChanged: (value) {
                                 setState(() {
                                   edadPrincipal = value ?? 'adulto';
@@ -4971,6 +5008,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             field: TextField(
                               controller: allergiesPrincipalController,
                               decoration: _buildInputDecoration('Alergias (opcional)'),
+                              inputFormatters: [
+                                TextInputFormatter.withFunction((oldValue, newValue) {
+                                  return TextEditingValue(
+                                    text: newValue.text.toUpperCase(),
+                                    selection: newValue.selection,
+                                  );
+                                }),
+                              ],
                               style: TextStyle(
                                 color: Colors.black87,
                                 fontSize: isMobileDialog ? 15 : 16,
@@ -4996,17 +5041,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                 items: const [
                                   DropdownMenuItem(
                                     value: null,
-                                    child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                    child: Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                   ),
                                   DropdownMenuItem(
                                     value: 'si',
-                                    child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                    child: Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                   ),
                                   DropdownMenuItem(
                                     value: 'no',
-                                    child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                    child: Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                   ),
                                 ],
+                                selectedItemBuilder: (BuildContext context) {
+                                  return [
+                                    const Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                    const Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                    const Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                  ];
+                                },
                                 onChanged: (value) => setState(() => needTronaPrincipal = value ?? ''),
                               ),
                             ),
@@ -5344,6 +5396,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                       field: TextField(
                                         controller: controllers['name'] as TextEditingController,
                                         decoration: _buildInputDecoration('Nombre'),
+                                        inputFormatters: [
+                                          TextInputFormatter.withFunction((oldValue, newValue) {
+                                            return TextEditingValue(
+                                              text: newValue.text.toUpperCase(),
+                                              selection: newValue.selection,
+                                            );
+                                          }),
+                                        ],
                                         style: TextStyle(
                                           color: Colors.black87,
                                           fontSize: isMobileDialog ? 15 : 16,
@@ -5367,17 +5427,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                         items: const [
                                           DropdownMenuItem(
                                             value: 'adulto',
-                                            child: Text('Adulto', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            child: Text('ADULTO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                           ),
                                           DropdownMenuItem(
                                             value: '12-18',
-                                            child: Text('12-18 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            child: Text('12-18 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                           ),
                                           DropdownMenuItem(
                                             value: '0-12',
-                                            child: Text('0-12 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            child: Text('0-12 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                           ),
                                         ],
+                                        selectedItemBuilder: (BuildContext context) {
+                                          return const [
+                                            Text('ADULTO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                            Text('12-18 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                            Text('0-12 AÑOS', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                          ];
+                                        },
                                         onChanged: (value) {
                                           setState(() => controllers['age'] = value ?? 'adulto');
                                         },
@@ -5390,6 +5457,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                       field: TextField(
                                         controller: controllers['allergies'] as TextEditingController,
                                         decoration: _buildInputDecoration('Alergias (opcional)'),
+                                        inputFormatters: [
+                                          TextInputFormatter.withFunction((oldValue, newValue) {
+                                            return TextEditingValue(
+                                              text: newValue.text.toUpperCase(),
+                                              selection: newValue.selection,
+                                            );
+                                          }),
+                                        ],
                                         style: TextStyle(
                                           color: Colors.black87,
                                           fontSize: isMobileDialog ? 15 : 16,
@@ -5417,17 +5492,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                         items: const [
                                           DropdownMenuItem(
                                             value: null,
-                                            child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            child: Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                           ),
                                           DropdownMenuItem(
                                             value: 'si',
-                                            child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            child: Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                           ),
                                           DropdownMenuItem(
                                             value: 'no',
-                                            child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            child: Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                           ),
                                         ],
+                                        selectedItemBuilder: (BuildContext context) {
+                                          return [
+                                            const Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                            const Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                            const Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                          ];
+                                        },
                                         onChanged: (value) {
                                           setState(() {
                                             controllers['needTransport'] = value ?? '';
@@ -5494,17 +5576,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                           items: const [
                                             DropdownMenuItem(
                                               value: null,
-                                              child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                              child: Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                             ),
                                             DropdownMenuItem(
                                               value: 'si',
-                                              child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                              child: Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                             ),
                                             DropdownMenuItem(
                                               value: 'no',
-                                              child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                              child: Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                             ),
                                           ],
+                                          selectedItemBuilder: (BuildContext context) {
+                                            return [
+                                              const Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                              const Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                              const Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                            ];
+                                          },
                                           onChanged: (value) => setState(() => controllers['needTrona'] = value ?? ''),
                                         ),
                                       ),
@@ -5533,17 +5622,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               items: const [
                                 DropdownMenuItem(
                                   value: null,
-                                  child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  child: Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'si',
-                                  child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  child: Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'no',
-                                  child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  child: Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                 ),
                               ],
+                              selectedItemBuilder: (BuildContext context) {
+                                return [
+                                  const Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                  const Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                  const Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                ];
+                              },
                               onChanged: (value) {
                                 setState(() {
                                   needTransport = value ?? '';
@@ -5601,6 +5697,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             controller: songsController,
                             decoration: _buildInputDecoration('Canciones favoritas (opcional)'),
                             maxLines: 2,
+                            inputFormatters: [
+                              TextInputFormatter.withFunction((oldValue, newValue) {
+                                return TextEditingValue(
+                                  text: newValue.text.toUpperCase(),
+                                  selection: newValue.selection,
+                                );
+                              }),
+                            ],
                             style: TextStyle(
                               color: Colors.black87,
                               fontSize: isMobileDialog ? 15 : 16,
@@ -5625,17 +5729,24 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             items: const [
                               DropdownMenuItem(
                                 value: null,
-                                child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                child: Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                               ),
                               DropdownMenuItem(
                                 value: 'si',
-                                child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                child: Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16)),
                               ),
                               DropdownMenuItem(
                                 value: 'no',
-                                child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                child: Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16)),
                               ),
                             ],
+                            selectedItemBuilder: (BuildContext context) {
+                              return [
+                                const Text('NO ESPECIFICADO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                const Text('SÍ', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                                const Text('NO', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500)),
+                              ];
+                            },
                             onChanged: (value) => setState(() => albumDigital = value ?? ''),
                           ),
                         ),
@@ -5646,6 +5757,14 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             controller: messageController,
                             decoration: _buildInputDecoration('Mensaje para los novios (opcional)'),
                             maxLines: 3,
+                            inputFormatters: [
+                              TextInputFormatter.withFunction((oldValue, newValue) {
+                                return TextEditingValue(
+                                  text: newValue.text.toUpperCase(),
+                                  selection: newValue.selection,
+                                );
+                              }),
+                            ],
                             style: TextStyle(
                               color: Colors.black87,
                               fontSize: isMobileDialog ? 15 : 16,
