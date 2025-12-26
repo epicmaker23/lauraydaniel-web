@@ -1031,13 +1031,18 @@ class _MegaphonePainter extends CustomPainter {
 }
 
 void _mostrarTransporte(BuildContext context) {
+  final isMobile = MediaQuery.of(context).size.width < 600;
   showDialog(
     context: context,
     builder: (_) => Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.all(24),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? double.infinity : 600,
+          maxHeight: MediaQuery.of(context).size.height * (isMobile ? 1.0 : 0.95),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 16 : 24),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1045,66 +1050,98 @@ void _mostrarTransporte(BuildContext context) {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.directions_bus, color: const Color(0xFFD4AF37), size: 32),
-                    const SizedBox(width: 12),
-                    Text(
-    'Transporte',
-                      style: GoogleFonts.allura(
-                        fontSize: 36,
-                        color: const Color(0xFFD4AF37),
+                    Icon(Icons.directions_bus, color: const Color(0xFFD4AF37), size: isMobile ? 28 : 32),
+                    SizedBox(width: isMobile ? 10 : 12),
+                    Flexible(
+                      child: Text(
+                        'Transporte',
+                        style: GoogleFonts.allura(
+                          fontSize: isMobile ? 28 : 36,
+                          color: const Color(0xFFD4AF37),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: isMobile ? 16 : 20),
+                Divider(
+                  color: const Color(0xFFD4AF37).withOpacity(0.3),
+                  thickness: 1,
+                  height: 1,
+                ),
+                SizedBox(height: isMobile ? 20 : 24),
                 _seccionTransporte(
                   icon: Icons.airport_shuttle,
                   iconColor: Colors.green.shade400,
                   titulo: 'SERVICIO DE AUTOBÚS GRATUITO PARA INVITADOS',
-                  contenido: 'Ponemos a disposición de nuestros invitados un servicio de autobús gratuito que facilitará el desplazamiento hasta la celebración.',
+                  contenido: 'Para facilitaros el desplazamiento hasta el lugar de celebración, ponemos a vuestra disposición de forma completamente gratuita un autobús exclusivo. Lo hemos organizado especialmente para que todos podáis disfrutar plenamente de este día tan especial sin preocupaciones adicionales.',
+                  isMobile: isMobile,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isMobile ? 18 : 20),
                 _seccionTransporte(
                   icon: Icons.route,
                   iconColor: Colors.blue.shade300,
                   titulo: 'RUTA:',
-                  contenido: 'Los autobuses realizarán la ruta Santander - Villasevil y viceversa.',
+                  contenido: 'El autobús realizará una ruta directa entre Santander y Villasevil, así como el trayecto de regreso en sentido inverso. De esta manera, podréis desplazaros de forma cómoda y segura tanto a la ida como al regreso.',
+                  isMobile: isMobile,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isMobile ? 18 : 20),
                 _seccionTransporte(
                   icon: Icons.location_on,
                   iconColor: Colors.red,
                   titulo: 'PARADAS:',
-                  contenido: 'Se realizarán paradas tanto a la ida como a la vuelta en Santander, Torrelavega y Puente Viesgo para facilitar el acceso a todos los invitados.\n\nLos puntos exactos de paradas en estas localidades se facilitarán más adelante en la web.',
+                  contenido: 'Para facilitaros el acceso, independientemente de vuestro lugar de procedencia, realizaremos paradas estratégicamente ubicadas en Santander, Torrelavega y Puente Viesgo, tanto a la ida como al regreso. Los puntos exactos de recogida en cada localidad, así como las direcciones precisas y los detalles adicionales de cada parada, los comunicaremos y actualizaremos oportunamente por esta misma vía.',
+                  isMobile: isMobile,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isMobile ? 18 : 20),
                 _seccionTransporte(
                   icon: Icons.access_time,
                   iconColor: Colors.red,
                   titulo: 'HORARIOS:',
-                  contenido: 'Los horarios exactos se facilitarán más adelante en la web. No obstante, informamos que habrá dos horarios de vuelta disponibles:\n\n• Primer horario: 21:30 horas\n• Segundo horario: 00:30 horas',
+                  contenido: 'Los horarios detallados y definitivos, incluyendo las horas de salida desde cada punto de recogida y los tiempos estimados de llegada, los publicaremos y actualizaremos aquí con la debida antelación. Como información preliminar, queremos adelantaros que habrá dos salidas de regreso para que podáis elegir el horario que mejor se adapte a vuestras necesidades:\n\n• Primera salida: 21:30 horas\n• Segunda salida: 00:30 horas (madrugada del día siguiente)',
+                  isMobile: isMobile,
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Icon(Icons.campaign, color: const Color(0xFFD4AF37), size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Os mantendremos informados de cualquier actualización a través de esta web.',
-                        style: TextStyle(fontSize: 14),
-                      ),
+                SizedBox(height: isMobile ? 20 : 24),
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 14 : 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFD4AF37).withOpacity(0.3),
+                      width: 1,
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.campaign, color: const Color(0xFFD4AF37), size: isMobile ? 20 : 22),
+                      SizedBox(width: isMobile ? 10 : 12),
+                      Expanded(
+                        child: Text(
+                          'Os mantendremos informados de cualquier actualización o novedad relacionada con el autobús a través de esta plataforma. Agradecemos vuestra atención y esperamos que esta información os sea de utilidad.',
+                          style: TextStyle(
+                            fontSize: isMobile ? 14 : 14,
+                            height: 1.5,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: isMobile ? 20 : 24),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(
                       'Cerrar',
-                      style: TextStyle(color: const Color(0xFFD4AF37)),
+                      style: TextStyle(
+                        color: const Color(0xFFD4AF37),
+                        fontSize: isMobile ? 16 : null,
+                        fontWeight: isMobile ? FontWeight.w600 : null,
+                      ),
                     ),
                   ),
                 ),
@@ -1122,32 +1159,100 @@ Widget _seccionTransporte({
   required Color iconColor,
   required String titulo,
   required String contenido,
+  bool isMobile = false,
 }) {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, color: iconColor, size: 24),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              titulo,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              contenido,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
+  return Container(
+    padding: EdgeInsets.all(isMobile ? 14 : 16),
+    margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: Colors.grey.shade200,
+        width: 1,
       ),
-    ],
+    ),
+    child: isMobile
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      titulo,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        height: 1.3,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                contenido,
+                textAlign: TextAlign.justify,
+                softWrap: true,
+                style: TextStyle(
+                  fontSize: isMobile ? 14 : 14,
+                  height: 1.6,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      contenido,
+                      textAlign: TextAlign.justify,
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.6,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
   );
 }
 
@@ -1464,16 +1569,33 @@ class _RegalosDialogState extends State<_RegalosDialog> {
                       onPressed: _ibanVisible
                           ? () {
                               Clipboard.setData(const ClipboardData(text: _iban));
+                              ScaffoldMessenger.of(context).clearSnackBars();
+                              final isMobile = MediaQuery.of(context).size.width < 600;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: const Text(
+                                  content: Text(
                                     'IBAN copiado al portapapeles',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: isMobile ? 13 : 15,
+                                    ),
                                   ),
-                                  backgroundColor: Colors.green.shade600,
+                                  backgroundColor: const Color(0xFF2E7D32),
                                   behavior: SnackBarBehavior.floating,
                                   duration: const Duration(seconds: 2),
-                                  elevation: 6,
+                                  elevation: 4,
+                                  margin: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? 16 : 24,
+                                    vertical: 12,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: isMobile ? 10 : 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                 ),
                               );
                             }
@@ -1656,47 +1778,122 @@ void _mostrarSubirFotos(BuildContext context) {
 }
 
 void _mostrarFotomaton(BuildContext context) {
+  final isMobile = MediaQuery.of(context).size.width < 600;
   showDialog(
     context: context,
     builder: (_) => Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.camera_alt, color: const Color(0xFFD4AF37), size: 32),
-                  const SizedBox(width: 12),
-                  Text(
-    'Fotomatón',
-                    style: GoogleFonts.allura(
-                      fontSize: 36,
-                      color: const Color(0xFFD4AF37),
+      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.all(24),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? double.infinity : 600,
+          maxHeight: MediaQuery.of(context).size.height * (isMobile ? 1.0 : 0.95),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 16 : 24),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.camera_alt, color: const Color(0xFFD4AF37), size: isMobile ? 28 : 32),
+                    SizedBox(width: isMobile ? 10 : 12),
+                    Flexible(
+                      child: Text(
+                        'Fotomatón',
+                        style: GoogleFonts.allura(
+                          fontSize: isMobile ? 28 : 36,
+                          color: const Color(0xFFD4AF37),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isMobile ? 16 : 20),
+                Divider(
+                  color: const Color(0xFFD4AF37).withOpacity(0.3),
+                  thickness: 1,
+                  height: 1,
+                ),
+                SizedBox(height: isMobile ? 20 : 24),
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 16 : 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey.shade200,
+                      width: 1,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-    'Descarga tus fotos divertidas del fotomatón. Disponible después de la boda.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cerrar',
-                    style: TextStyle(color: const Color(0xFFD4AF37)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.camera_alt,
+                              color: const Color(0xFFD4AF37),
+                              size: isMobile ? 20 : 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Servicio de Fotomatón',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isMobile ? 16 : 18,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isMobile ? 14 : 16),
+                      Text(
+                        'Como parte de los recuerdos de nuestra celebración, hemos organizado un fotomatón que estará disponible durante el evento para que podáis capturar momentos divertidos y espontáneos. Todas las imágenes tomadas serán procesadas y organizadas tras la celebración, y estarán disponibles para su descarga a través de esta plataforma una vez finalizado el evento. Os mantendremos informados sobre cuándo estarán listas para que podáis descargarlas y conservar estos recuerdos tan especiales.',
+                        textAlign: TextAlign.justify,
+                        softWrap: true,
+                        style: TextStyle(
+                          fontSize: isMobile ? 15 : 14,
+                          height: 1.7,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                SizedBox(height: isMobile ? 24 : 28),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 20 : 16,
+                        vertical: isMobile ? 12 : 8,
+                      ),
+                    ),
+                    child: Text(
+                      'Cerrar',
+                      style: TextStyle(
+                        color: const Color(0xFFD4AF37),
+                        fontSize: isMobile ? 16 : null,
+                        fontWeight: isMobile ? FontWeight.w600 : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -3555,85 +3752,125 @@ class _LoginDialogState extends State<_LoginDialog> {
   @override
   Widget build(BuildContext context) {
     const gold = Color(0xFFD4AF37);
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final viewInsets = MediaQuery.of(context).viewInsets;
+    final screenHeight = MediaQuery.of(context).size.height;
     return Dialog(
+      insetPadding: isMobile 
+          ? EdgeInsets.only(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              top: viewInsets.bottom > 0 ? 40 : 0,
+            )
+          : const EdgeInsets.all(24),
       child: Container(
-        padding: const EdgeInsets.all(24),
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Iniciar Sesión',
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? double.infinity : 400,
+          maxHeight: isMobile 
+              ? screenHeight - viewInsets.bottom - (viewInsets.bottom > 0 ? 80 : 40)
+              : double.infinity,
+        ),
+        padding: EdgeInsets.all(isMobile ? 20 : 24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Iniciar Sesión',
               style: GoogleFonts.allura(
                 fontSize: 32,
                 color: gold,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _usernameController,
-              textInputAction: TextInputAction.next,
-              onSubmitted: (_) => _passwordFocusNode.requestFocus(),
-              decoration: InputDecoration(
-                labelText: 'Usuario',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: gold),
-                  borderRadius: BorderRadius.circular(8),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _usernameController,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _passwordFocusNode.requestFocus(),
+                decoration: InputDecoration(
+                  labelText: 'Usuario',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: gold),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              focusNode: _passwordFocusNode,
-              obscureText: _obscurePassword,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _handleLogin(),
-              decoration: InputDecoration(
-                labelText: 'Contraseña',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: gold),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                focusNode: _passwordFocusNode,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleLogin(),
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: gold.withOpacity(0.4)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: gold),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              style: FilledButton.styleFrom(
-                backgroundColor: gold,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _isLoading ? null : _handleLogin,
+                style: FilledButton.styleFrom(
+                  backgroundColor: gold,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Entrar'),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Entrar'),
-            ),
-          ],
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pushReplacementNamed('/');
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade800,
+                  side: BorderSide(color: Colors.grey.shade600, width: 1.5),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Regresar a Portada',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -7191,7 +7428,10 @@ class _GaleriaPageState extends State<GaleriaPage> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.logout, color: gold),
-                        onPressed: () => setState(() => _isAuthenticated = false),
+                        onPressed: () {
+                          setState(() => _isAuthenticated = false);
+                          Navigator.of(context).pushReplacementNamed('/');
+                        },
                         tooltip: 'Cerrar sesión',
                       ),
                     ],
