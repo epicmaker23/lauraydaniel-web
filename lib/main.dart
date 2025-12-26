@@ -7429,7 +7429,6 @@ class _GaleriaPageState extends State<GaleriaPage> {
                       IconButton(
                         icon: const Icon(Icons.logout, color: gold),
                         onPressed: () {
-                          setState(() => _isAuthenticated = false);
                           Navigator.of(context).pushReplacementNamed('/');
                         },
                         tooltip: 'Cerrar sesión',
