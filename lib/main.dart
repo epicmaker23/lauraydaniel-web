@@ -3967,60 +3967,351 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('No hay confirmaciones'));
+          return const Center(child: Text('No hay confirmaciones', style: TextStyle(color: Colors.white70)));
         }
         
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.docs.length,
-          itemBuilder: (context, index) {
-            final doc = snapshot.data!.docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            return Card(
-              color: Colors.grey[900],
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                onTap: () => _viewRsvpDetails(context, doc),
-                title: Text(
-                  data['name'] ?? 'Sin nombre',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
+            
+            if (isMobile) {
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final doc = snapshot.data!.docs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  return _buildMobileCard(context, doc, data);
+                },
+              );
+            } else if (isTablet) {
+              return GridView.builder(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.1,
                 ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Email: ${data['email'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
-                    Text('Teléfono: ${data['phone'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
-                    Text('Asistencia: ${(data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO'}', style: const TextStyle(color: Colors.white70)),
-                    if ((data['asistencia']?.toString().toUpperCase() ?? '') == 'SI') ...[
-                      Text('Adultos: ${data['num_adultos'] ?? 0}', style: const TextStyle(color: Colors.white70)),
-                      Text('12-18: ${data['num_12_18'] ?? 0}', style: const TextStyle(color: Colors.white70)),
-                      Text('0-12: ${data['num_0_12'] ?? 0}', style: const TextStyle(color: Colors.white70)),
-                    ],
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final doc = snapshot.data!.docs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  return _buildTabletCard(context, doc, data);
+                },
+              );
+            } else {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(const Color(0xFFD4AF37).withOpacity(0.2)),
+                  dataRowMinHeight: 60,
+                  dataRowMaxHeight: 100,
+                  columns: const [
+                    DataColumn(label: Text('Nombre', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Email', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Teléfono', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Asistencia', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Fecha', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text('Acciones', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
                   ],
+                  rows: snapshot.data!.docs.map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final asistencia = (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI';
+                    return DataRow(
+                      onSelectChanged: (_) => _viewRsvpDetails(context, doc),
+                      cells: [
+                        DataCell(Text((data['name'] ?? 'Sin nombre').toString().toUpperCase(), style: const TextStyle(color: Colors.white))),
+                        DataCell(Text((data['email'] ?? 'N/A').toString().toUpperCase(), style: const TextStyle(color: Colors.white))),
+                        DataCell(Text((data['phone'] ?? 'N/A').toString().toUpperCase(), style: const TextStyle(color: Colors.white))),
+                        DataCell(
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (asistencia ? Colors.green : Colors.red).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: asistencia ? Colors.green : Colors.red,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              asistencia ? 'SÍ' : 'NO',
+                              style: TextStyle(
+                                color: asistencia ? Colors.green : Colors.red,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            _formatDateTime(data['created_at']),
+                            style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 12),
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.visibility, color: Color(0xFFD4AF37), size: 20),
+                                onPressed: () => _viewRsvpDetails(context, doc),
+                                tooltip: 'Ver detalles',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Color(0xFFD4AF37), size: 20),
+                                onPressed: () => _editRsvp(context, doc),
+                                tooltip: 'Editar',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                onPressed: () => _deleteRsvp(context, doc.id),
+                                tooltip: 'Eliminar',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 ),
-                leading: Icon(
-                  (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? Icons.check_circle : Icons.cancel,
-                  color: (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? Colors.green : Colors.red,
-                  size: 28,
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                      onPressed: () => _editRsvp(context, doc),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteRsvp(context, doc.id),
-                    ),
-                  ],
-                ),
-              ),
-            );
+              );
+            }
           },
         );
       },
+    );
+  }
+  
+  String _formatDateTime(dynamic timestamp) {
+    if (timestamp == null) return 'Sin fecha';
+    
+    try {
+      DateTime date;
+      if (timestamp is Timestamp) {
+        date = timestamp.toDate();
+      } else if (timestamp is String) {
+        date = DateTime.parse(timestamp);
+      } else {
+        return 'Fecha inválida';
+      }
+      
+      // Formato: DD/MM/YYYY HH:MM:SS
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} '
+          '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}:${date.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'Error al formatear fecha';
+    }
+  }
+  
+  Widget _buildMobileCard(BuildContext context, DocumentSnapshot doc, Map<String, dynamic> data) {
+    final asistencia = (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI';
+    return Card(
+      color: Colors.grey[900],
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFD4AF37), width: 1),
+      ),
+      child: InkWell(
+        onTap: () => _viewRsvpDetails(context, doc),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    asistencia ? Icons.check_circle : Icons.cancel,
+                    color: asistencia ? Colors.green : Colors.red,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      (data['name'] ?? 'Sin nombre').toString().toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Email: ${(data['email'] ?? 'N/A').toString().toUpperCase()}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 4),
+              Text('Teléfono: ${(data['phone'] ?? 'N/A').toString().toUpperCase()}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 4),
+              Text('Asistencia: ${asistencia ? 'SÍ' : 'NO'}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              if (asistencia) ...[
+                const SizedBox(height: 4),
+                Text('Adultos: ${data['num_adultos'] ?? 0} | 12-18: ${data['num_12_18'] ?? 0} | 0-12: ${data['num_0_12'] ?? 0}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                'Fecha: ${_formatDateTime(data['created_at'])}',
+                style: const TextStyle(
+                  color: Color(0xFFD4AF37),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _viewRsvpDetails(context, doc),
+                    icon: const Icon(Icons.visibility, size: 18, color: Color(0xFFD4AF37)),
+                    label: const Text('Ver', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton.icon(
+                    onPressed: () => _editRsvp(context, doc),
+                    icon: const Icon(Icons.edit, size: 18, color: Color(0xFFD4AF37)),
+                    label: const Text('Editar', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12)),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton.icon(
+                    onPressed: () => _deleteRsvp(context, doc.id),
+                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                    label: const Text('Eliminar', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTabletCard(BuildContext context, DocumentSnapshot doc, Map<String, dynamic> data) {
+    final asistencia = (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI';
+    return Card(
+      color: Colors.grey[900],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFD4AF37), width: 1),
+      ),
+      child: InkWell(
+        onTap: () => _viewRsvpDetails(context, doc),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        asistencia ? Icons.check_circle : Icons.cancel,
+                        color: asistencia ? Colors.green : Colors.red,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          (data['name'] ?? 'Sin nombre').toString().toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text((data['email'] ?? 'N/A').toString().toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text((data['phone'] ?? 'N/A').toString().toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (asistencia ? Colors.green : Colors.red).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: asistencia ? Colors.green : Colors.red,
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      asistencia ? 'SÍ ASISTIRÁ' : 'NO ASISTIRÁ',
+                      style: TextStyle(
+                        color: asistencia ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  if (asistencia) ...[
+                    const SizedBox(height: 4),
+                    Text('A: ${data['num_adultos'] ?? 0} | 12-18: ${data['num_12_18'] ?? 0} | 0-12: ${data['num_0_12'] ?? 0}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _formatDateTime(data['created_at']),
+                style: const TextStyle(
+                  color: Color(0xFFD4AF37),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.visibility, color: Color(0xFFD4AF37), size: 20),
+                    onPressed: () => _viewRsvpDetails(context, doc),
+                    tooltip: 'Ver detalles',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Color(0xFFD4AF37), size: 20),
+                    onPressed: () => _editRsvp(context, doc),
+                    tooltip: 'Editar',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                    onPressed: () => _deleteRsvp(context, doc.id),
+                    tooltip: 'Eliminar',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
   
@@ -4065,6 +4356,7 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
   Future<void> _viewRsvpDetails(BuildContext context, DocumentSnapshot doc) async {
     final data = doc.data() as Map<String, dynamic>;
     final gold = const Color(0xFFD4AF37);
+    final isMobile = MediaQuery.of(context).size.width < 600;
     
     // Cargar acompañantes
     List<Map<String, dynamic>> companionsData = [];
@@ -4076,92 +4368,104 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
       context: context,
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: 600,
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
+        insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.all(24),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Container(
+              constraints: BoxConstraints(
+                maxWidth: isMobile ? double.infinity : 700,
+                maxHeight: MediaQuery.of(context).size.height * (isMobile ? 1.0 : 0.95),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(isMobile ? 0 : 12),
+              ),
+              child: Column(
+                children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 16 : 20,
+                  vertical: isMobile ? 14 : 18,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(isMobile ? 0 : 12),
+                    topRight: Radius.circular(isMobile ? 0 : 12),
                   ),
                   border: Border(bottom: BorderSide(color: gold.withOpacity(0.3))),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.person, color: gold, size: 32),
-                    const SizedBox(width: 12),
+                    Icon(Icons.person, color: gold, size: isMobile ? 22 : 32),
+                    SizedBox(width: isMobile ? 10 : 12),
                     Expanded(
                       child: Text(
                         'Detalles de la Confirmación',
                         style: GoogleFonts.allura(
-                          fontSize: 28,
+                          fontSize: isMobile ? 20 : 28,
                           color: gold,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white70),
+                      icon: Icon(Icons.close, color: Colors.white70, size: isMobile ? 22 : 24),
                       onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.all(isMobile ? 8 : 8),
+                      constraints: BoxConstraints(
+                        minWidth: isMobile ? 40 : 48,
+                        minHeight: isMobile ? 40 : 48,
+                      ),
                     ),
                   ],
                 ),
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(isMobile ? 12 : 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildDetailSection('Información Principal', [
-                        _buildDetailRow('Nombre', data['name'] ?? 'N/A'),
-                        _buildDetailRow('Email', data['email'] ?? 'N/A'),
-                        _buildDetailRow('Teléfono', data['phone'] ?? 'N/A'),
-                        _buildDetailRow('Asistencia', (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO'),
-                      ]),
+                        _buildDetailRow('Nombre', data['name'] ?? 'N/A', isMobile: isMobile),
+                        _buildDetailRow('Email', data['email'] ?? 'N/A', isMobile: isMobile),
+                        _buildDetailRow('Teléfono', data['phone'] ?? 'N/A', isMobile: isMobile),
+                        _buildDetailRow('Asistencia', (data['asistencia']?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO', isMobile: isMobile),
+                        _buildDetailRow('Fecha de confirmación', _formatDateTime(data['created_at']), isMobile: isMobile),
+                      ], isMobile: isMobile),
                       if ((data['asistencia']?.toString().toUpperCase() ?? '') == 'SI') ...[
-                        const SizedBox(height: 16),
+                        SizedBox(height: isMobile ? 14 : 16),
                         _buildDetailSection('Información del Invitado Principal', [
-                          _buildDetailRow('Edad', _formatAge(data['edad_principal'])),
+                          _buildDetailRow('Edad', _formatAge(data['edad_principal']), isMobile: isMobile),
                           if (data['alergias_principal'] != null && data['alergias_principal'].toString().isNotEmpty)
-                            _buildDetailRow('Alergias', data['alergias_principal'] ?? 'Ninguna'),
+                            _buildDetailRow('Alergias', data['alergias_principal'] ?? 'Ninguna', isMobile: isMobile),
                           if ((data['edad_principal']?.toString().toUpperCase() ?? '') == '0-12' && data['necesita_trona'] != null)
-                            _buildDetailRow('¿Necesita trona?', _formatYesNo(data['necesita_trona'])),
+                            _buildDetailRow('¿Necesita trona?', _formatYesNo(data['necesita_trona']), isMobile: isMobile),
                           if (data['necesita_transporte'] != null)
-                            _buildDetailRow('¿Usa el autobús?', _formatYesNo(data['necesita_transporte'])),
+                            _buildDetailRow('¿Usa el autobús?', _formatYesNo(data['necesita_transporte']), isMobile: isMobile),
                           if ((data['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' && data['parada_autobus'] != null)
-                            _buildDetailRow('Parada autobús', _formatBusStop(data['parada_autobus'])),
-                        ]),
-                        const SizedBox(height: 16),
+                            _buildDetailRow('Parada autobús', _formatBusStop(data['parada_autobus']), isMobile: isMobile),
+                        ], isMobile: isMobile),
+                        SizedBox(height: isMobile ? 14 : 16),
                         _buildDetailSection('Acompañantes', [
-                          _buildDetailRow('Viene acompañado', ((data['acompanante'] ?? data['companion'])?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO'),
+                          _buildDetailRow('Viene acompañado', ((data['acompanante'] ?? data['companion'])?.toString().toUpperCase() ?? '') == 'SI' ? 'SÍ' : 'NO', isMobile: isMobile),
                           if (data['num_adultos'] != null || data['num_12_18'] != null || data['num_0_12'] != null) ...[
-                            const SizedBox(height: 8),
-                            _buildDetailRow('Total adultos', '${data['num_adultos'] ?? 0}', indent: 0),
-                            _buildDetailRow('Total 12-18 años', '${data['num_12_18'] ?? 0}', indent: 0),
-                            _buildDetailRow('Total menores 12 años', '${data['num_0_12'] ?? 0}', indent: 0),
+                            SizedBox(height: isMobile ? 6 : 8),
+                            _buildDetailRow('Total adultos', '${data['num_adultos'] ?? 0}', indent: 0, isMobile: isMobile),
+                            _buildDetailRow('Total 12-18 años', '${data['num_12_18'] ?? 0}', indent: 0, isMobile: isMobile),
+                            _buildDetailRow('Total menores 12 años', '${data['num_0_12'] ?? 0}', indent: 0, isMobile: isMobile),
                           ],
                           if (((data['acompanante'] ?? data['companion'])?.toString().toUpperCase() ?? '') == 'SI' && companionsData.isNotEmpty) ...[
-                            const SizedBox(height: 12),
+                            SizedBox(height: isMobile ? 10 : 12),
                             ...companionsData.asMap().entries.map((entry) {
                               final index = entry.key;
                               final companion = entry.value;
                               return Container(
-                                padding: const EdgeInsets.all(16),
-                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                                margin: EdgeInsets.only(bottom: isMobile ? 10 : 12),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(isMobile ? 8 : 8),
                                   border: Border.all(color: gold.withOpacity(0.3), width: 1),
                                 ),
                                 child: Column(
@@ -4169,152 +4473,235 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                   children: [
                                     Row(
                                       children: [
-                                        Icon(Icons.person_outline, color: gold, size: 20),
-                                        const SizedBox(width: 8),
+                                        Icon(Icons.person_outline, color: gold, size: isMobile ? 16 : 20),
+                                        SizedBox(width: isMobile ? 6 : 8),
                                         Text(
                                           'Acompañante ${index + 1}',
                                           style: TextStyle(
                                             color: gold,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                            fontSize: isMobile ? 13 : 16,
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 12),
-                                    _buildDetailRow('Nombre', companion['nombre'] ?? 'N/A', indent: 0),
-                                    _buildDetailRow('Edad', _formatAge(companion['edad']), indent: 0),
+                                    SizedBox(height: isMobile ? 10 : 12),
+                                    _buildDetailRow('Nombre', companion['nombre'] ?? 'N/A', indent: 0, isMobile: isMobile),
+                                    _buildDetailRow('Edad', _formatAge(companion['edad']), indent: 0, isMobile: isMobile),
                                     if (companion['alergias'] != null && companion['alergias'].toString().isNotEmpty)
-                                      _buildDetailRow('Alergias', companion['alergias'] ?? 'Ninguna', indent: 0),
+                                      _buildDetailRow('Alergias', companion['alergias'] ?? 'Ninguna', indent: 0, isMobile: isMobile),
                                     if (companion['necesita_transporte'] != null)
-                                      _buildDetailRow('¿Usa autobús?', _formatYesNo(companion['necesita_transporte']), indent: 0),
+                                      _buildDetailRow('¿Usa autobús?', _formatYesNo(companion['necesita_transporte']), indent: 0, isMobile: isMobile),
                                     if ((companion['necesita_transporte']?.toString().toUpperCase() ?? '') == 'SI' && companion['parada_autobus'] != null)
-                                      _buildDetailRow('Parada autobús', _formatBusStop(companion['parada_autobus']), indent: 0),
+                                      _buildDetailRow('Parada autobús', _formatBusStop(companion['parada_autobus']), indent: 0, isMobile: isMobile),
                                     if ((companion['edad']?.toString().toUpperCase() ?? '') == '0-12' && companion['necesita_trona'] != null)
-                                      _buildDetailRow('¿Necesita trona?', _formatYesNo(companion['necesita_trona']), indent: 0),
+                                      _buildDetailRow('¿Necesita trona?', _formatYesNo(companion['necesita_trona']), indent: 0, isMobile: isMobile),
                                   ],
                                 ),
                               );
                             }),
                           ],
-                        ]),
-                        const SizedBox(height: 16),
+                        ], isMobile: isMobile),
+                        SizedBox(height: isMobile ? 12 : 16),
                         _buildDetailSection('Información Adicional', [
                           if (data['canciones'] != null && data['canciones'].toString().isNotEmpty)
-                            _buildDetailRow('Canciones favoritas', data['canciones'] ?? 'N/A'),
-                          _buildDetailRow('¿Desea álbum digital?', _formatYesNo(data['album_digital'])),
+                            _buildDetailRow('Canciones favoritas', data['canciones'] ?? 'N/A', isMobile: isMobile),
+                          _buildDetailRow('¿Desea álbum digital?', _formatYesNo(data['album_digital']), isMobile: isMobile),
                           if (data['mensaje_novios'] != null && data['mensaje_novios'].toString().isNotEmpty)
-                            _buildDetailRow('Mensaje para los novios', data['mensaje_novios'] ?? 'N/A'),
-                        ]),
+                            _buildDetailRow('Mensaje para los novios', data['mensaje_novios'] ?? 'N/A', isMobile: isMobile),
+                        ], isMobile: isMobile),
                       ],
                     ],
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 12 : 20,
+                  vertical: isMobile ? 16 : 18,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(isMobile ? 0 : 12),
+                    bottomRight: Radius.circular(isMobile ? 0 : 12),
                   ),
                   border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Cerrar',
-                        style: TextStyle(color: Color(0xFFD4AF37), fontSize: 16),
+                child: isMobile
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _editRsvp(context, doc);
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: gold,
+                                padding: EdgeInsets.symmetric(vertical: isMobile ? 16 : 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(isMobile ? 10 : 8),
+                                ),
+                                elevation: 2,
+                              ),
+                              child: Text(
+                                'Editar',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: isMobile ? 17 : 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isMobile ? 12 : 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: isMobile ? 16 : 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(isMobile ? 10 : 8),
+                                ),
+                              ),
+                              child: Text(
+                                'Cerrar',
+                                style: TextStyle(
+                                  color: gold,
+                                  fontSize: isMobile ? 17 : 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text(
+                              'Cerrar',
+                              style: TextStyle(color: Color(0xFFD4AF37), fontSize: 16),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _editRsvp(context, doc);
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: gold,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            child: const Text(
+                              'Editar',
+                              style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _editRsvp(context, doc);
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: gold,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      child: const Text(
-                        'Editar',
-                        style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
+        );
+          },
         ),
       ),
     );
   }
   
-  Widget _buildDetailSection(String title, List<Widget> children) {
+  Widget _buildDetailSection(String title, List<Widget> children, {bool isMobile = false}) {
     const gold = Color(0xFFD4AF37);
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: isMobile ? 14 : 20),
+      padding: EdgeInsets.all(isMobile ? 10 : 14),
       decoration: BoxDecoration(
         color: Colors.grey[800],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: gold.withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 8),
+        border: Border.all(color: gold.withOpacity(0.2), width: isMobile ? 1 : 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: gold,
-              fontSize: 18,
+              fontSize: isMobile ? 17 : 18,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 12 : 12),
           ...children,
         ],
       ),
     );
   }
   
-  Widget _buildDetailRow(String label, String value, {double indent = 0}) {
+  Widget _buildDetailRow(String label, String value, {double indent = 0, bool isMobile = false}) {
     return Padding(
-      padding: EdgeInsets.only(left: indent, top: 8, bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 200,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                color: Colors.grey[300],
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
+      padding: EdgeInsets.only(left: indent, top: isMobile ? 8 : 8, bottom: isMobile ? 8 : 8),
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$label:',
+                  style: TextStyle(
+                    color: Colors.grey[300],
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                SizedBox(height: isMobile ? 6 : 4),
+                Text(
+                  value.toUpperCase(),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isMobile ? 15 : 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 200,
+                  child: Text(
+                    '$label:',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    value.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
   
@@ -4431,211 +4818,293 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setState) => Dialog(
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: isMobile ? double.infinity : 700,
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
+          backgroundColor: Colors.transparent,
+          insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.all(24),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobileDialog = constraints.maxWidth < 600;
+              return Container(
+                constraints: BoxConstraints(
+                  maxWidth: isMobileDialog ? double.infinity : 800,
+                  maxHeight: MediaQuery.of(context).size.height * (isMobileDialog ? 1.0 : 0.95),
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(isMobileDialog ? 0 : 16),
+                  border: isMobileDialog ? null : Border.all(color: gold, width: 2),
+                ),
             child: Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobileDialog ? 16 : 20,
+                    vertical: isMobileDialog ? 14 : 18,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(isMobileDialog ? 0 : 16),
+                      topRight: Radius.circular(isMobileDialog ? 0 : 16),
+                    ),
                     border: Border(bottom: BorderSide(color: gold.withOpacity(0.3))),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.edit, color: gold, size: 32),
-                      const SizedBox(width: 12),
+                      Icon(Icons.edit, color: gold, size: isMobileDialog ? 22 : 32),
+                      SizedBox(width: isMobileDialog ? 10 : 12),
                       Expanded(
                         child: Text(
                           'Editar Confirmación',
                           style: GoogleFonts.allura(
-                            fontSize: 28,
+                            fontSize: isMobileDialog ? 20 : 28,
                             color: gold,
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                        icon: Icon(Icons.close, color: Colors.white70, size: isMobileDialog ? 22 : 24),
                         onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.all(isMobileDialog ? 8 : 8),
+                        constraints: BoxConstraints(
+                          minWidth: isMobileDialog ? 40 : 48,
+                          minHeight: isMobileDialog ? 40 : 48,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(isMobileDialog ? 14 : 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Información principal
-                        _buildSectionTitle('Información Principal'),
-                        TextField(
-                          controller: nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Nombre',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold),
-                              borderRadius: BorderRadius.circular(8),
+                        _buildSectionTitle('Información Principal', isMobile: isMobileDialog),
+                        _buildLabeledField(
+                          label: 'Nombre',
+                          field: TextField(
+                            controller: nameController,
+                            decoration: _buildInputDecoration('Nombre', isMobile: isMobileDialog),
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: isMobileDialog ? 15 : 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          style: const TextStyle(color: Colors.black),
+                          isMobile: isMobileDialog,
                         ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: emailController,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold),
-                              borderRadius: BorderRadius.circular(8),
+                        SizedBox(height: isMobileDialog ? 16 : 20),
+                        _buildLabeledField(
+                          label: 'Email',
+                          field: TextField(
+                            controller: emailController,
+                            decoration: _buildInputDecoration('Email'),
+                            keyboardType: TextInputType.emailAddress,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: isMobileDialog ? 15 : 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          style: const TextStyle(color: Colors.black),
+                          isMobile: isMobileDialog,
                         ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: phoneController,
-                          decoration: InputDecoration(
-                            labelText: 'Teléfono',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold),
-                              borderRadius: BorderRadius.circular(8),
+                        SizedBox(height: isMobileDialog ? 16 : 20),
+                        _buildLabeledField(
+                          label: 'Teléfono',
+                          field: TextField(
+                            controller: phoneController,
+                            decoration: _buildInputDecoration('Teléfono'),
+                            keyboardType: TextInputType.phone,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: isMobileDialog ? 15 : 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          style: const TextStyle(color: Colors.black),
+                          isMobile: isMobileDialog,
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: isMobileDialog ? 20 : 24),
                         
                         // Información del invitado principal
                         if (asistencia == 'si') ...[
-                          _buildSectionTitle('Información del Invitado Principal'),
-                          DropdownButtonFormField<String>(
-                            value: edadPrincipal,
-                            decoration: InputDecoration(
-                              labelText: 'Edad',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                borderRadius: BorderRadius.circular(8),
+                          _buildSectionTitle('Información del Invitado Principal', isMobile: isMobileDialog),
+                          _buildLabeledField(
+                            label: 'Edad',
+                            isMobile: isMobileDialog,
+                            field: DropdownButtonFormField<String>(
+                              value: edadPrincipal,
+                              decoration: _buildInputDecoration('Edad'),
+                              dropdownColor: Colors.grey[50],
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
                               ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'adulto',
+                                  child: Text('Adulto', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                ),
+                                DropdownMenuItem(
+                                  value: '12-18',
+                                  child: Text('12-18 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                ),
+                                DropdownMenuItem(
+                                  value: '0-12',
+                                  child: Text('0-12 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  edadPrincipal = value ?? 'adulto';
+                                  if (edadPrincipal != '0-12') {
+                                    needTronaPrincipal = '';
+                                  }
+                                });
+                              },
                             ),
-                            dropdownColor: Colors.white,
-                            style: const TextStyle(color: Colors.black),
-                            items: const [
-                              DropdownMenuItem(value: 'adulto', child: Text('Adulto', style: TextStyle(color: Colors.black))),
-                              DropdownMenuItem(value: '12-18', child: Text('12-18 años', style: TextStyle(color: Colors.black))),
-                              DropdownMenuItem(value: '0-12', child: Text('0-12 años', style: TextStyle(color: Colors.black))),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                edadPrincipal = value ?? 'adulto';
-                                if (edadPrincipal != '0-12') {
-                                  needTronaPrincipal = '';
-                                }
-                              });
-                            },
                           ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: allergiesPrincipalController,
-                            decoration: InputDecoration(
-                              labelText: 'Alergias (opcional)',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold),
-                                borderRadius: BorderRadius.circular(8),
+                          SizedBox(height: isMobileDialog ? 16 : 20),
+                          _buildLabeledField(
+                            label: 'Alergias (opcional)',
+                            field: TextField(
+                              controller: allergiesPrincipalController,
+                              decoration: _buildInputDecoration('Alergias (opcional)'),
+                              style: TextStyle(
+                                color: Colors.black87,
+                                fontSize: isMobileDialog ? 15 : 16,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            style: const TextStyle(color: Colors.black),
+                            isMobile: isMobileDialog,
                           ),
                           if (edadPrincipal == '0-12') ...[
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              value: needTronaPrincipal.isEmpty ? null : (needTronaPrincipal == 'si' || needTronaPrincipal == 'no' ? needTronaPrincipal : null),
-                              decoration: InputDecoration(
-                                labelText: '¿Necesita trona?',
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                  borderRadius: BorderRadius.circular(8),
+                            SizedBox(height: isMobileDialog ? 16 : 20),
+                            _buildLabeledField(
+                              label: '¿Necesita trona?',
+                              isMobile: isMobileDialog,
+                              field: DropdownButtonFormField<String>(
+                                value: needTronaPrincipal.isEmpty ? null : (needTronaPrincipal == 'si' || needTronaPrincipal == 'no' ? needTronaPrincipal : null),
+                                decoration: _buildInputDecoration('¿Necesita trona?'),
+                                dropdownColor: Colors.grey[50],
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: gold),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: null,
+                                    child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'si',
+                                    child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'no',
+                                    child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                ],
+                                onChanged: (value) => setState(() => needTronaPrincipal = value ?? ''),
                               ),
-                              dropdownColor: Colors.white,
-                              style: const TextStyle(color: Colors.black),
-                              items: const [
-                                DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
-                                DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
-                                DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
-                              ],
-                              onChanged: (value) => setState(() => needTronaPrincipal = value ?? ''),
                             ),
                           ],
-                          const SizedBox(height: 24),
+                          SizedBox(height: isMobileDialog ? 20 : 24),
                         ],
                         
                         // Asistencia
-                        _buildSectionTitle('Asistencia'),
+                        _buildSectionTitle('Asistencia', isMobile: isMobileDialog),
                         SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment(value: 'si', label: Text('Sí')),
-                            ButtonSegment(value: 'no', label: Text('No')),
+                          segments: [
+                            ButtonSegment(
+                              value: 'si',
+                              label: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobileDialog ? 20 : 16,
+                                  vertical: isMobileDialog ? 12 : 8,
+                                ),
+                                child: Text(
+                                  'Sí',
+                                  style: TextStyle(
+                                    fontSize: isMobileDialog ? 16 : 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            ButtonSegment(
+                              value: 'no',
+                              label: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobileDialog ? 20 : 16,
+                                  vertical: isMobileDialog ? 12 : 8,
+                                ),
+                                child: Text(
+                                  'No',
+                                  style: TextStyle(
+                                    fontSize: isMobileDialog ? 16 : 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                           selected: {asistencia},
                           onSelectionChanged: (Set<String> newSelection) {
                             setState(() => asistencia = newSelection.first);
                           },
+                          style: SegmentedButton.styleFrom(
+                            selectedBackgroundColor: gold,
+                            selectedForegroundColor: Colors.black,
+                            backgroundColor: Colors.grey[800],
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: gold.withOpacity(0.5),
+                              width: isMobileDialog ? 2 : 2,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 24),
+                        SizedBox(height: isMobileDialog ? 20 : 24),
                         
                         // Acompañantes
                         if (asistencia == 'si') ...[
-                          _buildSectionTitle('Acompañantes'),
+                          _buildSectionTitle('Acompañantes', isMobile: isMobileDialog),
                           SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(value: 'si', label: Text('Sí')),
-                              ButtonSegment(value: 'no', label: Text('No')),
+                            segments: [
+                              ButtonSegment(
+                                value: 'si',
+                                label: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobileDialog ? 20 : 16,
+                                    vertical: isMobileDialog ? 12 : 8,
+                                  ),
+                                  child: Text(
+                                    'Sí',
+                                    style: TextStyle(
+                                      fontSize: isMobileDialog ? 16 : 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              ButtonSegment(
+                                value: 'no',
+                                label: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobileDialog ? 20 : 16,
+                                    vertical: isMobileDialog ? 12 : 8,
+                                  ),
+                                  child: Text(
+                                    'No',
+                                    style: TextStyle(
+                                      fontSize: isMobileDialog ? 16 : 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                             selected: {companion},
                             onSelectionChanged: (Set<String> newSelection) {
@@ -4657,83 +5126,191 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                 }
                               });
                             },
+                            style: SegmentedButton.styleFrom(
+                              selectedBackgroundColor: gold,
+                              selectedForegroundColor: Colors.black,
+                              backgroundColor: Colors.grey[800],
+                              foregroundColor: Colors.white,
+                              side: BorderSide(color: gold.withOpacity(0.5), width: isMobileDialog ? 2 : 2),
+                            ),
                           ),
                           if (companion == 'si') ...[
-                            const SizedBox(height: 16),
+                            SizedBox(height: isMobileDialog ? 14 : 16),
                             Container(
-                              padding: const EdgeInsets.all(12),
+                              padding: EdgeInsets.all(isMobileDialog ? 14 : 16),
                               decoration: BoxDecoration(
-                                color: gold.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: gold.withOpacity(0.5), width: 2),
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'Número de acompañantes:',
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  IconButton(
-                                    onPressed: numCompanions > 0
-                                        ? () {
-                                            setState(() {
-                                              numCompanions--;
-                                              companionControllers.removeLast();
-                                            });
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.remove, color: Colors.black87),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '$numCompanions',
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: numCompanions < 9
-                                        ? () {
-                                            setState(() {
-                                              numCompanions++;
-                                              companionControllers.add({
-                                                'name': TextEditingController(),
-                                                'age': 'adulto',
-                                                'allergies': TextEditingController(),
-                                                'needTransport': null,
-                                                'busStop': null,
-                                                'needTrona': null,
-                                              });
-                                            });
-                                          }
-                                        : null,
-                                    icon: const Icon(Icons.add, color: Colors.black87),
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(isMobileDialog ? 10 : 10),
+                                border: Border.all(color: gold, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: gold.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
+                              child: isMobileDialog
+                                  ? Column(
+                                      children: [
+                                        Text(
+                                          'Número de acompañantes:',
+                                          style: TextStyle(
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        SizedBox(height: isMobileDialog ? 14 : 12),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            IconButton(
+                                              onPressed: numCompanions > 0
+                                                  ? () {
+                                                      setState(() {
+                                                        numCompanions--;
+                                                        companionControllers.removeLast();
+                                                      });
+                                                    }
+                                                  : null,
+                                              icon: Icon(
+                                                Icons.remove_circle_outline,
+                                                color: numCompanions > 0 ? Colors.red[700] : Colors.grey[400],
+                                                size: isMobileDialog ? 32 : 28,
+                                              ),
+                                              padding: EdgeInsets.all(isMobileDialog ? 8 : 8),
+                                              constraints: BoxConstraints(
+                                                minWidth: isMobileDialog ? 48 : 48,
+                                                minHeight: isMobileDialog ? 48 : 48,
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: isMobileDialog ? 24 : 20,
+                                                vertical: isMobileDialog ? 12 : 10,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: gold,
+                                                borderRadius: BorderRadius.circular(isMobileDialog ? 10 : 8),
+                                                border: Border.all(color: gold.withOpacity(0.3), width: 2),
+                                              ),
+                                              child: Text(
+                                                '$numCompanions',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: isMobileDialog ? 20 : 18,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: numCompanions < 9
+                                                  ? () {
+                                                      setState(() {
+                                                        numCompanions++;
+                                                        companionControllers.add({
+                                                          'name': TextEditingController(),
+                                                          'age': 'adulto',
+                                                          'allergies': TextEditingController(),
+                                                          'needTransport': null,
+                                                          'busStop': null,
+                                                          'needTrona': null,
+                                                        });
+                                                      });
+                                                    }
+                                                  : null,
+                                              icon: Icon(
+                                                Icons.add_circle_outline,
+                                                color: numCompanions < 9 ? Colors.green[700] : Colors.grey[400],
+                                                size: isMobileDialog ? 32 : 28,
+                                              ),
+                                              padding: EdgeInsets.all(isMobileDialog ? 8 : 8),
+                                              constraints: BoxConstraints(
+                                                minWidth: isMobileDialog ? 48 : 48,
+                                                minHeight: isMobileDialog ? 48 : 48,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    )
+                                  : Row(
+                                      children: [
+                                        Text(
+                                          'Número de acompañantes:',
+                                          style: TextStyle(
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 17,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        IconButton(
+                                          onPressed: numCompanions > 0
+                                              ? () {
+                                                  setState(() {
+                                                    numCompanions--;
+                                                    companionControllers.removeLast();
+                                                  });
+                                                }
+                                              : null,
+                                          icon: Icon(
+                                            Icons.remove_circle_outline,
+                                            color: numCompanions > 0 ? Colors.red[700] : Colors.grey[400],
+                                            size: 28,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: gold,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: gold.withOpacity(0.3), width: 2),
+                                          ),
+                                          child: Text(
+                                            '$numCompanions',
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: numCompanions < 9
+                                              ? () {
+                                                  setState(() {
+                                                    numCompanions++;
+                                                    companionControllers.add({
+                                                      'name': TextEditingController(),
+                                                      'age': 'adulto',
+                                                      'allergies': TextEditingController(),
+                                                      'needTransport': null,
+                                                      'busStop': null,
+                                                      'needTrona': null,
+                                                    });
+                                                  });
+                                                }
+                                              : null,
+                                          icon: Icon(
+                                            Icons.add_circle_outline,
+                                            color: numCompanions < 9 ? Colors.green[700] : Colors.grey[400],
+                                            size: 28,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             ),
                             ...companionControllers.asMap().entries.map((entry) {
                               final index = entry.key;
                               final controllers = entry.value;
                               return Container(
-                                margin: const EdgeInsets.only(top: 16),
-                                padding: const EdgeInsets.all(16),
+                                margin: EdgeInsets.only(top: isMobileDialog ? 14 : 16),
+                                padding: EdgeInsets.all(isMobileDialog ? 14 : 16),
                                 decoration: BoxDecoration(
                                   color: gold.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(isMobileDialog ? 10 : 12),
                                   border: Border.all(color: gold, width: 2),
                                   boxShadow: [
                                     BoxShadow(
@@ -4747,182 +5324,189 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      padding: EdgeInsets.symmetric(horizontal: isMobileDialog ? 10 : 12, vertical: isMobileDialog ? 5 : 6),
                                       decoration: BoxDecoration(
                                         color: gold,
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(isMobileDialog ? 5 : 6),
                                       ),
                                       child: Text(
                                         'Acompañante ${index + 1}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.black,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                          fontSize: isMobileDialog ? 14 : 16,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    TextField(
-                                      controller: controllers['name'] as TextEditingController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Nombre',
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold),
-                                          borderRadius: BorderRadius.circular(8),
+                                    SizedBox(height: isMobileDialog ? 10 : 12),
+                                    _buildLabeledField(
+                                      label: 'Nombre',
+                                      field: TextField(
+                                        controller: controllers['name'] as TextEditingController,
+                                        decoration: _buildInputDecoration('Nombre'),
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: isMobileDialog ? 15 : 16,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      style: const TextStyle(color: Colors.black),
+                                      isMobile: isMobileDialog,
                                     ),
-                                    const SizedBox(height: 8),
-                                    DropdownButtonFormField<String>(
-                                      value: controllers['age'] as String,
-                                      decoration: InputDecoration(
-                                        labelText: 'Edad',
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                          borderRadius: BorderRadius.circular(8),
+                                    SizedBox(height: isMobileDialog ? 12 : 16),
+                                    _buildLabeledField(
+                                      label: 'Edad',
+                                      field: DropdownButtonFormField<String>(
+                                        value: controllers['age'] as String,
+                                        decoration: _buildInputDecoration('Edad'),
+                                        dropdownColor: Colors.grey[50],
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: isMobileDialog ? 15 : 16,
+                                          fontWeight: FontWeight.w500,
                                         ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'adulto',
+                                            child: Text('Adulto', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: '12-18',
+                                            child: Text('12-18 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: '0-12',
+                                            child: Text('0-12 años', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          setState(() => controllers['age'] = value ?? 'adulto');
+                                        },
                                       ),
-                                      dropdownColor: Colors.white,
-                                      style: const TextStyle(color: Colors.black),
-                                      items: const [
-                                        DropdownMenuItem(value: 'adulto', child: Text('Adulto', style: TextStyle(color: Colors.black))),
-                                        DropdownMenuItem(value: '12-18', child: Text('12-18 años', style: TextStyle(color: Colors.black))),
-                                        DropdownMenuItem(value: '0-12', child: Text('0-12 años', style: TextStyle(color: Colors.black))),
-                                      ],
-                                      onChanged: (value) {
-                                        setState(() => controllers['age'] = value ?? 'adulto');
-                                      },
+                                      isMobile: isMobileDialog,
                                     ),
-                                    const SizedBox(height: 8),
-                                    TextField(
-                                      controller: controllers['allergies'] as TextEditingController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Alergias (opcional)',
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold),
-                                          borderRadius: BorderRadius.circular(8),
+                                    SizedBox(height: isMobileDialog ? 12 : 16),
+                                    _buildLabeledField(
+                                      label: 'Alergias (opcional)',
+                                      field: TextField(
+                                        controller: controllers['allergies'] as TextEditingController,
+                                        decoration: _buildInputDecoration('Alergias (opcional)'),
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: isMobileDialog ? 15 : 16,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      style: const TextStyle(color: Colors.black),
+                                      isMobile: isMobileDialog,
                                     ),
-                                    const SizedBox(height: 8),
-                                    DropdownButtonFormField<String>(
-                                      value: (controllers['needTransport']?.toString() ?? '').isEmpty 
-                                          ? null 
-                                          : ((controllers['needTransport']?.toString() == 'si' || controllers['needTransport']?.toString() == 'no') 
-                                              ? controllers['needTransport']?.toString() 
-                                              : null),
-                                      decoration: InputDecoration(
-                                        labelText: '¿Usará el autobús?',
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                          borderRadius: BorderRadius.circular(8),
+                                    SizedBox(height: isMobileDialog ? 12 : 16),
+                                    _buildLabeledField(
+                                      label: '¿Usará el autobús?',
+                                      field: DropdownButtonFormField<String>(
+                                        value: (controllers['needTransport']?.toString() ?? '').isEmpty 
+                                            ? null 
+                                            : ((controllers['needTransport']?.toString() == 'si' || controllers['needTransport']?.toString() == 'no') 
+                                                ? controllers['needTransport']?.toString() 
+                                                : null),
+                                        decoration: _buildInputDecoration('¿Usará el autobús?'),
+                                        dropdownColor: Colors.grey[50],
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: isMobileDialog ? 15 : 16,
+                                          fontWeight: FontWeight.w500,
                                         ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderSide: BorderSide(color: gold),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: null,
+                                            child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'si',
+                                            child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'no',
+                                            child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          setState(() {
+                                            controllers['needTransport'] = value ?? '';
+                                            if (value == 'no') {
+                                              controllers['busStop'] = null;
+                                            }
+                                          });
+                                        },
                                       ),
-                                      dropdownColor: Colors.white,
-                                      style: const TextStyle(color: Colors.black),
-                                      items: const [
-                                        DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
-                                        DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
-                                        DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
-                                      ],
-                                      onChanged: (value) {
-                                        setState(() {
-                                          controllers['needTransport'] = value ?? '';
-                                          if (value == 'no') {
-                                            controllers['busStop'] = null;
-                                          }
-                                        });
-                                      },
+                                      isMobile: isMobileDialog,
                                     ),
                                     if ((controllers['needTransport']?.toString() ?? '') == 'si') ...[
-                                      const SizedBox(height: 8),
-                                      DropdownButtonFormField<String>(
-                                        value: controllers['busStop']?.toString(),
-                                        decoration: InputDecoration(
-                                          labelText: 'Desde dónde cogerá el autobús?',
-                                          filled: true,
-                                          fillColor: Colors.white,
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                            borderRadius: BorderRadius.circular(8),
+                                      SizedBox(height: isMobileDialog ? 12 : 16),
+                                      _buildLabeledField(
+                                        label: 'Desde dónde cogerá el autobús?',
+                                        field: DropdownButtonFormField<String>(
+                                          value: controllers['busStop']?.toString(),
+                                          decoration: _buildInputDecoration('Desde dónde cogerá el autobús?'),
+                                          dropdownColor: Colors.grey[50],
+                                          style: TextStyle(
+                                            color: Colors.black87,
+                                            fontSize: isMobileDialog ? 15 : 16,
+                                            fontWeight: FontWeight.w500,
                                           ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(color: gold),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: null,
+                                              child: Text('Seleccionar', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'santander',
+                                              child: Text('Santander', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'torrelavega',
+                                              child: Text('Torrelavega', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'puente_viesgo',
+                                              child: Text('Puente Viesgo', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                          ],
+                                          onChanged: (value) => setState(() => controllers['busStop'] = value),
                                         ),
-                                        dropdownColor: Colors.white,
-                                        style: const TextStyle(color: Colors.black),
-                                        items: const [
-                                          DropdownMenuItem(value: null, child: Text('Seleccionar', style: TextStyle(color: Colors.black))),
-                                          DropdownMenuItem(value: 'santander', child: Text('Santander', style: TextStyle(color: Colors.black))),
-                                          DropdownMenuItem(value: 'torrelavega', child: Text('Torrelavega', style: TextStyle(color: Colors.black))),
-                                          DropdownMenuItem(value: 'puente_viesgo', child: Text('Puente Viesgo', style: TextStyle(color: Colors.black))),
-                                        ],
-                                        onChanged: (value) => setState(() => controllers['busStop'] = value),
                                       ),
                                     ],
                                     if ((controllers['age'] as String) == '0-12') ...[
-                                      const SizedBox(height: 8),
-                                      DropdownButtonFormField<String>(
-                                        value: (controllers['needTrona']?.toString() ?? '').isEmpty 
-                                            ? null 
-                                            : ((controllers['needTrona']?.toString() == 'si' || controllers['needTrona']?.toString() == 'no') 
-                                                ? controllers['needTrona']?.toString() 
-                                                : null),
-                                        decoration: InputDecoration(
-                                          labelText: '¿Necesitará una trona?',
-                                          filled: true,
-                                          fillColor: Colors.white,
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                            borderRadius: BorderRadius.circular(8),
+                                      const SizedBox(height: 16),
+                                      _buildLabeledField(
+                                        label: '¿Necesitará una trona?',
+                                        field: DropdownButtonFormField<String>(
+                                          value: (controllers['needTrona']?.toString() ?? '').isEmpty 
+                                              ? null 
+                                              : ((controllers['needTrona']?.toString() == 'si' || controllers['needTrona']?.toString() == 'no') 
+                                                  ? controllers['needTrona']?.toString() 
+                                                  : null),
+                                          decoration: _buildInputDecoration('¿Necesitará una trona?'),
+                                          dropdownColor: Colors.grey[50],
+                                          style: const TextStyle(
+                                            color: Colors.black87,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
                                           ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(color: gold),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
+                                          items: const [
+                                            DropdownMenuItem(
+                                              value: null,
+                                              child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'si',
+                                              child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'no',
+                                              child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                            ),
+                                          ],
+                                          onChanged: (value) => setState(() => controllers['needTrona'] = value ?? ''),
                                         ),
-                                        dropdownColor: Colors.white,
-                                        style: const TextStyle(color: Colors.black),
-                                        items: const [
-                                          DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
-                                          DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
-                                          DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
-                                        ],
-                                        onChanged: (value) => setState(() => controllers['needTrona'] = value ?? ''),
                                       ),
                                     ],
                                   ],
@@ -4930,161 +5514,171 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               );
                             }),
                           ],
-                          const SizedBox(height: 24),
+                          SizedBox(height: isMobileDialog ? 20 : 24),
                           
                           // Transporte del invitado principal
-                          _buildSectionTitle('Transporte del Invitado Principal'),
-                          DropdownButtonFormField<String>(
-                            value: needTransport.isEmpty ? null : (needTransport == 'si' || needTransport == 'no' ? needTransport : null),
-                            decoration: InputDecoration(
-                              labelText: '¿Usa el autobús?',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                borderRadius: BorderRadius.circular(8),
+                          _buildSectionTitle('Transporte del Invitado Principal', isMobile: isMobileDialog),
+                          _buildLabeledField(
+                            label: '¿Usa el autobús?',
+                            isMobile: isMobileDialog,
+                            field: DropdownButtonFormField<String>(
+                              value: needTransport.isEmpty ? null : (needTransport == 'si' || needTransport == 'no' ? needTransport : null),
+                              decoration: _buildInputDecoration('¿Usa el autobús?'),
+                              dropdownColor: Colors.grey[50],
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
                               ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: gold),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'si',
+                                  child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'no',
+                                  child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  needTransport = value ?? '';
+                                  if (needTransport == 'no') {
+                                    busStopPrincipal = null;
+                                  }
+                                });
+                              },
                             ),
-                            dropdownColor: Colors.white,
-                            style: const TextStyle(color: Colors.black),
-                            items: const [
-                              DropdownMenuItem(value: null, child: Text('No especificado', style: TextStyle(color: Colors.black))),
-                              DropdownMenuItem(value: 'si', child: Text('Sí', style: TextStyle(color: Colors.black))),
-                              DropdownMenuItem(value: 'no', child: Text('No', style: TextStyle(color: Colors.black))),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                needTransport = value ?? '';
-                                if (needTransport == 'no') {
-                                  busStopPrincipal = null;
-                                }
-                              });
-                            },
                           ),
                           if (needTransport == 'si') ...[
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              value: busStopPrincipal,
-                              decoration: InputDecoration(
-                                labelText: 'Desde dónde cogerá el autobús?',
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                                  borderRadius: BorderRadius.circular(8),
+                            SizedBox(height: isMobileDialog ? 16 : 20),
+                            _buildLabeledField(
+                              label: 'Desde dónde cogerá el autobús?',
+                              isMobile: isMobileDialog,
+                              field: DropdownButtonFormField<String>(
+                                value: busStopPrincipal,
+                                decoration: _buildInputDecoration('Desde dónde cogerá el autobús?'),
+                                dropdownColor: Colors.grey[50],
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: gold),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: null,
+                                    child: Text('Seleccionar', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'santander',
+                                    child: Text('Santander', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'torrelavega',
+                                    child: Text('Torrelavega', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'puente_viesgo',
+                                    child: Text('Puente Viesgo', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                  ),
+                                ],
+                                onChanged: (value) => setState(() => busStopPrincipal = value),
                               ),
-                              dropdownColor: Colors.white,
-                              style: const TextStyle(color: Colors.black),
-                              items: const [
-                                DropdownMenuItem(value: null, child: Text('Seleccionar', style: TextStyle(color: Colors.black))),
-                                DropdownMenuItem(value: 'santander', child: Text('Santander', style: TextStyle(color: Colors.black))),
-                                DropdownMenuItem(value: 'torrelavega', child: Text('Torrelavega', style: TextStyle(color: Colors.black))),
-                                DropdownMenuItem(value: 'puente_viesgo', child: Text('Puente Viesgo', style: TextStyle(color: Colors.black))),
-                              ],
-                              onChanged: (value) => setState(() => busStopPrincipal = value),
                             ),
                           ],
-                          const SizedBox(height: 24),
+                          SizedBox(height: isMobileDialog ? 20 : 24),
                         ],
                         
                         // Canciones y mensaje
-                        _buildSectionTitle('Información Adicional'),
-                        TextField(
-                          controller: songsController,
-                          decoration: InputDecoration(
-                            labelText: 'Canciones favoritas (opcional)',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold),
-                              borderRadius: BorderRadius.circular(8),
+                        _buildSectionTitle('Información Adicional', isMobile: isMobileDialog),
+                        _buildLabeledField(
+                          label: 'Canciones favoritas (opcional)',
+                          field: TextField(
+                            controller: songsController,
+                            decoration: _buildInputDecoration('Canciones favoritas (opcional)'),
+                            maxLines: 2,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: isMobileDialog ? 15 : 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          maxLines: 2,
-                          style: const TextStyle(color: Colors.black),
+                          isMobile: isMobileDialog,
                         ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: albumDigital.isEmpty ? null : (albumDigital == 'si' || albumDigital == 'no' ? albumDigital : null),
-                          decoration: InputDecoration(
-                            labelText: '¿Desea álbum digital?',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                              borderRadius: BorderRadius.circular(8),
+                        SizedBox(height: isMobileDialog ? 16 : 20),
+                        _buildLabeledField(
+                          label: '¿Desea álbum digital?',
+                          isMobile: isMobileDialog,
+                          field: DropdownButtonFormField<String>(
+                            value: albumDigital.isEmpty ? null : (albumDigital == 'si' || albumDigital == 'no' ? albumDigital : null),
+                            decoration: _buildInputDecoration('¿Desea álbum digital?'),
+                            dropdownColor: Colors.grey[50],
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: null,
+                                child: Text('No especificado', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                              ),
+                              DropdownMenuItem(
+                                value: 'si',
+                                child: Text('Sí', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                              ),
+                              DropdownMenuItem(
+                                value: 'no',
+                                child: Text('No', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                              ),
+                            ],
+                            onChanged: (value) => setState(() => albumDigital = value ?? ''),
                           ),
-                          dropdownColor: Colors.white,
-                          style: const TextStyle(color: Colors.black),
-                          items: const [
-                            DropdownMenuItem(value: null, child: Text('No especificado')),
-                            DropdownMenuItem(value: 'si', child: Text('Sí')),
-                            DropdownMenuItem(value: 'no', child: Text('No')),
-                          ],
-                          onChanged: (value) => setState(() => albumDigital = value ?? ''),
                         ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: messageController,
-                          decoration: InputDecoration(
-                            labelText: 'Mensaje para los novios (opcional)',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold.withOpacity(0.4)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: gold),
-                              borderRadius: BorderRadius.circular(8),
+                        SizedBox(height: isMobileDialog ? 16 : 20),
+                        _buildLabeledField(
+                          label: 'Mensaje para los novios (opcional)',
+                          field: TextField(
+                            controller: messageController,
+                            decoration: _buildInputDecoration('Mensaje para los novios (opcional)'),
+                            maxLines: 3,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: isMobileDialog ? 15 : 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          maxLines: 3,
-                          style: const TextStyle(color: Colors.black),
+                          isMobile: isMobileDialog,
                         ),
                       ],
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobileDialog ? 12 : 20,
+                    vertical: isMobileDialog ? 16 : 18,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(isMobileDialog ? 0 : 16),
+                      bottomRight: Radius.circular(isMobileDialog ? 0 : 16),
+                    ),
                     border: Border(top: BorderSide(color: gold.withOpacity(0.3))),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton(
-                        onPressed: () async {
+                  child: isMobileDialog
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed: () async {
                           try {
                             // Calcular conteos (solo acompañantes, el principal se suma después)
                             int countAdult = 0, countTeen = 0, countKid = 0;
@@ -5107,12 +5701,12 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                                 final busStop = c['busStop']?.toString() ?? '';
                                 final needTrona = c['needTrona']?.toString() ?? '';
                                 return {
-                                  'nombre': nameCtrl.text.trim().toUpperCase(),
-                                  'edad': (c['age'] as String).toUpperCase(),
-                                  'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim().toUpperCase(),
-                                  'necesita_transporte': needTransport.isEmpty ? null : needTransport.toUpperCase(),
-                                  'parada_autobus': busStop.isEmpty ? null : busStop.toUpperCase(),
-                                  'necesita_trona': needTrona.isEmpty ? null : needTrona.toUpperCase(),
+                                  'nombre': nameCtrl.text.trim(),
+                                  'edad': (c['age'] as String).toLowerCase(),
+                                  'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim(),
+                                  'necesita_transporte': needTransport.isEmpty ? null : needTransport.toLowerCase(),
+                                  'parada_autobus': busStop.isEmpty ? null : busStop.toLowerCase(),
+                                  'necesita_trona': needTrona.isEmpty ? null : needTrona.toLowerCase(),
                                 };
                               }).toList();
                             }
@@ -5124,27 +5718,30 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                               if (edadPrincipal == '0-12') countKid++;
                             }
                             
-                            // Actualizar documento
-                            await doc.reference.update({
-                              'name': nameController.text.trim().toUpperCase(),
-                              'email': emailController.text.trim().toUpperCase(),
-                              'phone': phoneController.text.trim().toUpperCase(),
-                              'asistencia': asistencia.toUpperCase(),
-                              'edad_principal': edadPrincipal.toUpperCase(),
-                              'alergias_principal': allergiesPrincipalController.text.trim().isEmpty ? null : allergiesPrincipalController.text.trim().toUpperCase(),
-                              'necesita_trona': needTronaPrincipal.isEmpty ? null : needTronaPrincipal.toUpperCase(),
-                              'companion': companion.toUpperCase(),
+                            // Actualizar documento - usar minúsculas para mantener consistencia
+                            final updateData = <String, dynamic>{
+                              'name': nameController.text.trim(),
+                              'email': emailController.text.trim().toLowerCase(),
+                              'phone': phoneController.text.trim(),
+                              'asistencia': asistencia.toLowerCase(),
+                              'edad_principal': edadPrincipal.toLowerCase(),
+                              'alergias_principal': allergiesPrincipalController.text.trim().isEmpty ? null : allergiesPrincipalController.text.trim(),
+                              'necesita_trona': needTronaPrincipal.isEmpty ? null : needTronaPrincipal.toLowerCase(),
+                              'acompanante': companion.toLowerCase(),
+                              'companion': companion.toLowerCase(), // Mantener ambos por compatibilidad
                               'num_acompanantes': companion == 'si' ? companionControllers.length : 0,
                               'num_adultos': countAdult,
                               'num_12_18': countTeen,
                               'num_0_12': countKid,
-                              'necesita_transporte': needTransport.isEmpty ? null : needTransport.toUpperCase(),
-                              'parada_autobus': busStopPrincipal?.toUpperCase(),
-                              'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim().toUpperCase(),
-                              'album_digital': albumDigital.isEmpty ? null : albumDigital.toUpperCase(),
-                              'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim().toUpperCase(),
+                              'necesita_transporte': needTransport.isEmpty ? null : needTransport.toLowerCase(),
+                              'parada_autobus': busStopPrincipal?.toLowerCase(),
+                              'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim(),
+                              'album_digital': albumDigital.isEmpty ? null : albumDigital.toLowerCase(),
+                              'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim(),
                               'acompanantes_json': acompanantesJson,
-                            });
+                            };
+                            
+                            await doc.reference.update(updateData);
                             
                             if (context.mounted) {
                               Navigator.pop(context);
@@ -5160,14 +5757,154 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
                             }
                           }
                         },
-                        style: FilledButton.styleFrom(backgroundColor: gold),
-                        child: const Text('Guardar', style: TextStyle(color: Colors.black)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: gold,
+                          padding: EdgeInsets.symmetric(vertical: isMobileDialog ? 16 : 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(isMobileDialog ? 10 : 8),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Guardar',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: isMobileDialog ? 17 : 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ],
+                            ),
+                            SizedBox(height: isMobileDialog ? 12 : 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: isMobileDialog ? 16 : 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(isMobileDialog ? 10 : 8),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Cancelar',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: isMobileDialog ? 17 : 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              child: const Text('Cancelar', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton(
+                              onPressed: () async {
+                                try {
+                                  // Calcular conteos (solo acompañantes, el principal se suma después)
+                                  int countAdult = 0, countTeen = 0, countKid = 0;
+                                  if (companion == 'si' && companionControllers.isNotEmpty) {
+                                    for (final c in companionControllers) {
+                                      final age = c['age'] as String;
+                                      if (age == 'adulto') countAdult++;
+                                      if (age == '12-18') countTeen++;
+                                      if (age == '0-12') countKid++;
+                                    }
+                                  }
+                                  
+                                  // Preparar datos de acompañantes
+                                  List<Map<String, dynamic>> acompanantesJson = [];
+                                  if (companion == 'si' && companionControllers.isNotEmpty) {
+                                    acompanantesJson = companionControllers.map((c) {
+                                      final nameCtrl = c['name'] as TextEditingController;
+                                      final allergiesCtrl = c['allergies'] as TextEditingController;
+                                      final needTransport = c['needTransport']?.toString() ?? '';
+                                      final busStop = c['busStop']?.toString() ?? '';
+                                      final needTrona = c['needTrona']?.toString() ?? '';
+                                      return {
+                                        'nombre': nameCtrl.text.trim(),
+                                        'edad': (c['age'] as String).toLowerCase(),
+                                        'alergias': allergiesCtrl.text.trim().isEmpty ? null : allergiesCtrl.text.trim(),
+                                        'necesita_transporte': needTransport.isEmpty ? null : needTransport.toLowerCase(),
+                                        'parada_autobus': busStop.isEmpty ? null : busStop.toLowerCase(),
+                                        'necesita_trona': needTrona.isEmpty ? null : needTrona.toLowerCase(),
+                                      };
+                                    }).toList();
+                                  }
+                                  
+                                  // Calcular conteos incluyendo el invitado principal
+                                  if (asistencia == 'si') {
+                                    if (edadPrincipal == 'adulto') countAdult++;
+                                    if (edadPrincipal == '12-18') countTeen++;
+                                    if (edadPrincipal == '0-12') countKid++;
+                                  }
+                                  
+                                  // Actualizar documento - usar minúsculas para mantener consistencia
+                                  final updateData = <String, dynamic>{
+                                    'name': nameController.text.trim(),
+                                    'email': emailController.text.trim().toLowerCase(),
+                                    'phone': phoneController.text.trim(),
+                                    'asistencia': asistencia.toLowerCase(),
+                                    'edad_principal': edadPrincipal.toLowerCase(),
+                                    'alergias_principal': allergiesPrincipalController.text.trim().isEmpty ? null : allergiesPrincipalController.text.trim(),
+                                    'necesita_trona': needTronaPrincipal.isEmpty ? null : needTronaPrincipal.toLowerCase(),
+                                    'acompanante': companion.toLowerCase(),
+                                    'companion': companion.toLowerCase(), // Mantener ambos por compatibilidad
+                                    'num_acompanantes': companion == 'si' ? companionControllers.length : 0,
+                                    'num_adultos': countAdult,
+                                    'num_12_18': countTeen,
+                                    'num_0_12': countKid,
+                                    'necesita_transporte': needTransport.isEmpty ? null : needTransport.toLowerCase(),
+                                    'parada_autobus': busStopPrincipal?.toLowerCase(),
+                                    'canciones': songsController.text.trim().isEmpty ? null : songsController.text.trim(),
+                                    'album_digital': albumDigital.isEmpty ? null : albumDigital.toLowerCase(),
+                                    'mensaje_novios': messageController.text.trim().isEmpty ? null : messageController.text.trim(),
+                                    'acompanantes_json': acompanantesJson,
+                                  };
+                                  
+                                  await doc.reference.update(updateData);
+                                  
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Confirmación actualizada'), backgroundColor: Colors.green),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: gold,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              child: const Text('Guardar', style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
                   ),
-                ),
               ],
             ),
+          );
+            },
           ),
         ),
       ),
@@ -5186,17 +5923,96 @@ class _RsvpManagementTabState extends State<_RsvpManagementTab> {
     }
   }
   
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, {bool isMobile = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 8),
+      padding: EdgeInsets.only(bottom: isMobile ? 12 : 12, top: isMobile ? 8 : 8),
       child: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFFD4AF37),
-          fontSize: 18,
+        style: TextStyle(
+          color: const Color(0xFFD4AF37),
+          fontSize: isMobile ? 19 : 20,
           fontWeight: FontWeight.bold,
+          letterSpacing: 0.3,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
       ),
+    );
+  }
+  
+  InputDecoration _buildInputDecoration(String labelText, {Color? borderColor, bool isMobile = false}) {
+    final gold = const Color(0xFFD4AF37);
+    final border = borderColor ?? gold;
+    return InputDecoration(
+      // No usar labelText para evitar floating labels
+      hintText: null,
+      filled: true,
+      fillColor: Colors.grey[50],
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 16,
+        vertical: isMobile ? 16 : 16,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 10 : 10),
+        borderSide: BorderSide(color: border.withOpacity(0.6), width: isMobile ? 2 : 2),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 10 : 10),
+        borderSide: BorderSide(color: border.withOpacity(0.6), width: isMobile ? 2 : 2),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 10 : 10),
+        borderSide: BorderSide(color: border, width: isMobile ? 2.5 : 2.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 10 : 10),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 10 : 10),
+        borderSide: const BorderSide(color: Colors.red, width: 2.5),
+      ),
+    );
+  }
+  
+  // Widget helper para campos con label fijo arriba
+  Widget _buildLabeledField({
+    required String label,
+    required Widget field,
+    String? helperText,
+    bool isMobile = false,
+  }) {
+    final gold = const Color(0xFFD4AF37);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: gold,
+            fontSize: isMobile ? 15 : 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+        SizedBox(height: isMobile ? 8 : 8),
+        field,
+        if (helperText != null) ...[
+          SizedBox(height: isMobile ? 4 : 4),
+          Text(
+            helperText,
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: isMobile ? 12 : 12,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
